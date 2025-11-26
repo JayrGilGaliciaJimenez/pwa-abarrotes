@@ -1,0 +1,5 @@
+/server/src/main/resources/application.properties
+/client/.env
+
+/client/node_modules/
+/node_modules/

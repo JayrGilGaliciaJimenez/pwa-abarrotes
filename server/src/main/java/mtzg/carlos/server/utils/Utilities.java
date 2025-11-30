@@ -24,7 +24,7 @@ public class Utilities {
             map.put("date", new Date());
             map.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
             map.put("message", e.getMessage());
-            return new ResponseEntity<>(map, status);
+            return new ResponseEntity<>(map, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -41,7 +41,7 @@ public class Utilities {
             map.put("date", new Date());
             map.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
             map.put("message", e.getMessage());
-            return new ResponseEntity<>(map, status);
+            return new ResponseEntity<>(map, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

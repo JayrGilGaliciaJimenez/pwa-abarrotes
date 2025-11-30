@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ public class AuthService {
         public ResponseEntity<Object> register(UserRegisterDto request) {
                 Optional<UserModel> email = userRepository.findByEmail(request.getEmail());
                 if (email.isPresent()) {
-                        return Utilities.simpleResponse(HttpStatus.CONFLICT,"Unable to complete registration");
+                        return Utilities.simpleResponse(HttpStatus.CONFLICT, "Unable to complete registration");
                 }
                 var user = UserModel.builder()
                                 .name(request.getName())
@@ -47,7 +48,9 @@ public class AuthService {
                                 new UsernamePasswordAuthenticationToken(
                                                 request.getEmail(),
                                                 request.getPassword()));
-                var user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+                var user = userRepository.findByEmail(request.getEmail())
+                                .orElseThrow(() -> new UsernameNotFoundException(
+                                                "User not found with email: " + request.getEmail()));
                 var jwtToken = jwtService.generateToken(user);
                 return Utilities.authResponse(HttpStatus.OK, "User authenticated successfully", jwtToken);
         }

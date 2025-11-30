@@ -1,5 +1,7 @@
 package mtzg.carlos.server.auth;
 
+import java.util.Optional;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +27,10 @@ public class AuthService {
         private final AuthenticationManager authenticationManager;
 
         public ResponseEntity<Object> register(UserRegisterDto request) {
+                Optional<UserModel> email = userRepository.findByEmail(request.getEmail());
+                if (email.isPresent()) {
+                        return Utilities.simpleResponse(HttpStatus.CONFLICT,"This email is already in use");
+                }
                 var user = UserModel.builder()
                                 .name(request.getName())
                                 .email(request.getEmail())

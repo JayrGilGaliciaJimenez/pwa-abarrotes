@@ -29,7 +29,7 @@ public class AuthService {
         public ResponseEntity<Object> register(UserRegisterDto request) {
                 Optional<UserModel> email = userRepository.findByEmail(request.getEmail());
                 if (email.isPresent()) {
-                        return Utilities.simpleResponse(HttpStatus.CONFLICT,"This email is already in use");
+                        return Utilities.simpleResponse(HttpStatus.CONFLICT,"Unable to complete registration");
                 }
                 var user = UserModel.builder()
                                 .name(request.getName())

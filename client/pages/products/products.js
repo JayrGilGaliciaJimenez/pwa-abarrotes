@@ -13,8 +13,8 @@ let products = [
     },
     {
         id: 2,
-        name: "Frijol Negro 1kg",
-        description: "Frijol negro seleccionado, rico en proteínas",
+        name: "El Nori es gay",
+        description: "Y su novio es el Millan Guillen",
         price: 32.00
     },
     {

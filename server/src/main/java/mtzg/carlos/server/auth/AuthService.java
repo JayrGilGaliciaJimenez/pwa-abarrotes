@@ -43,7 +43,7 @@ public class AuthService {
                 return Utilities.authResponse(HttpStatus.OK, "User registered successfully", jwtToken);
         }
 
-        public ResponseEntity<Object> authentication(AuthRequest request) {
+        public ResponseEntity<Object> authenticate(AuthRequest request) {
                 authenticationManager.authenticate(
                                 new UsernamePasswordAuthenticationToken(
                                                 request.getEmail(),

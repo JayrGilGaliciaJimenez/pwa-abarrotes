@@ -14,34 +14,18 @@ public class Utilities {
 
     public static ResponseEntity<Object> simpleResponse(HttpStatus status, String message) {
         Map<String, Object> map = new HashMap<>();
-        try {
-            map.put("date", new Date());
-            map.put("status", status.value());
-            map.put("message", message);
-            return new ResponseEntity<>(map, status);
-        } catch (Exception e) {
-            map.clear();
-            map.put("date", new Date());
-            map.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-            map.put("message", e.getMessage());
-            return new ResponseEntity<>(map, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        map.put("date", new Date());
+        map.put("status", status.value());
+        map.put("message", message);
+        return new ResponseEntity<>(map, status);
     }
 
     public static ResponseEntity<Object> authResponse(HttpStatus status, String message, String token) {
         Map<String, Object> map = new HashMap<>();
-        try {
-            map.put("date", new Date());
-            map.put("status", status.value());
-            map.put("message", message);
-            map.put("token", token);
-            return new ResponseEntity<>(map, status);
-        } catch (Exception e) {
-            map.clear();
-            map.put("date", new Date());
-            map.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-            map.put("message", e.getMessage());
-            return new ResponseEntity<>(map, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        map.put("date", new Date());
+        map.put("status", status.value());
+        map.put("message", message);
+        map.put("token", token);
+        return new ResponseEntity<>(map, status);
     }
 }

@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: pwa_abarrotes
+      MYSQL_USER: app_user
+      MYSQL_PASSWORD: app_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  server:
+    build:
+      context: ./server
+    environment:
+      SERVER_PORT: 82
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: pwa_abarrotes
+      DB_USERNAME: app_user
+      DB_PASSWORD: app_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_FORMAT_SQL: "true"
+      JWT_SECRET: ${JWT_SECRET:-52aa49109e4fc36422edbc07251d3eb3646baccae8113a8f279ef248e5b7a0e4}
+    depends_on:
+      - db
+    ports:
+      - "8082:82"
+
+  client:
+    build:
+      context: ./client
+    environment:
+      API_BASE_URL: http://server:82
+    depends_on:
+      - server
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:

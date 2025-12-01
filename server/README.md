@@ -6,25 +6,28 @@
 
 ## Configuration
 
-Before running the project, you must create the `src/main/resources/application.properties` file with the following structure:
+Before running the project, you must create the `src/main/resources/application.properties` file with the following structure (defaults shown on the right can be overridden through environment variables, which is how the Docker images inject their values):
 
 ```properties
-spring.application.name=spring_security
+spring.application.name=pwa-abarrotes
+
+# Server configuration
+server.port=${SERVER_PORT:82}
 
 # Data Base Connection
-db.host=localhost
-db.port=3306
-db.name=spring_security
-db.username=root
-db.password=root
+db.host=${DB_HOST:localhost}
+db.port=${DB_PORT:3306}
+db.name=${DB_NAME:pwa_abarrotes}
+db.username=${DB_USERNAME:root}
+db.password=${DB_PASSWORD:}
 
 # JPA
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.properties.hibernate.format_sql=true
-spring.jpa.show-sql=true
+spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+spring.jpa.properties.hibernate.format_sql=${SPRING_JPA_FORMAT_SQL:true}
+spring.jpa.show-sql=${SPRING_JPA_SHOW_SQL:true}
 
 # Secret Key
-jwt.secret=YOUR_SECRET_KEY_HERE
+jwt.secret=${JWT_SECRET:YOUR_SECRET_KEY_HERE}
 ```
 
 > **Note:**  

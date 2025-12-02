@@ -1,6 +1,7 @@
 package mtzg.carlos.server.modules.stores;
 
 import java.util.Set;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -37,6 +38,9 @@ public class StoreModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "uuid", nullable = false, unique = true)
+    private UUID uuid;
+
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -49,7 +53,7 @@ public class StoreModel {
     @Column(name = "longitude", nullable = false)
     private Double longitude;
 
-    @Column(name = "qr_code", nullable = false)
+    @Column(name = "qr_code", nullable = true)
     private String qrCode;
 
     @ManyToMany(mappedBy = "stores", fetch = FetchType.LAZY)

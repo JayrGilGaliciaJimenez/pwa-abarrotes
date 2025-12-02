@@ -53,7 +53,7 @@ public class StoreModel {
     @Column(name = "longitude", nullable = false)
     private Double longitude;
 
-    @Column(name = "qr_code", nullable = false)
+    @Column(name = "qr_code", nullable = true)
     private String qrCode;
 
     @ManyToMany(mappedBy = "stores", fetch = FetchType.LAZY)

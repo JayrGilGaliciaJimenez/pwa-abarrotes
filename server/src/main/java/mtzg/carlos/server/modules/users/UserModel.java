@@ -1,4 +1,4 @@
-package mtzg.carlos.server.modules.user;
+package mtzg.carlos.server.modules.users;
 
 import java.util.Collection;
 import java.util.List;

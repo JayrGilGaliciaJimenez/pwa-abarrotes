@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import mtzg.carlos.server.modules.user.dto.UserRegisterDto;
+import mtzg.carlos.server.modules.users.dto.UserRegisterDto;
 
 @RestController
 @RequestMapping("/api/v1/auth")

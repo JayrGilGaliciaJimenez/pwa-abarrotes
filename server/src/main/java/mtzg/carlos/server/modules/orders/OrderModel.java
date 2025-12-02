@@ -1,4 +1,4 @@
-package mtzg.carlos.server.modules.order;
+package mtzg.carlos.server.modules.orders;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

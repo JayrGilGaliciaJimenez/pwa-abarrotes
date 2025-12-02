@@ -12,10 +12,10 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 import mtzg.carlos.server.modules.jwt.JwtService;
-import mtzg.carlos.server.modules.user.IUserRepository;
-import mtzg.carlos.server.modules.user.Role;
-import mtzg.carlos.server.modules.user.UserModel;
-import mtzg.carlos.server.modules.user.dto.UserRegisterDto;
+import mtzg.carlos.server.modules.users.IUserRepository;
+import mtzg.carlos.server.modules.users.Role;
+import mtzg.carlos.server.modules.users.UserModel;
+import mtzg.carlos.server.modules.users.dto.UserRegisterDto;
 import mtzg.carlos.server.utils.Utilities;
 
 @Service

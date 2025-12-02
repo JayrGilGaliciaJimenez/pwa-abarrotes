@@ -16,9 +16,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import mtzg.carlos.server.modules.order.OrderModel;
+import mtzg.carlos.server.modules.orders.OrderModel;
 import mtzg.carlos.server.modules.stores.StoreModel;
-import mtzg.carlos.server.modules.user.UserModel;
+import mtzg.carlos.server.modules.users.UserModel;
 
 @Entity
 @Data

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.products.dto.ProductRegisterDto;
 import mtzg.carlos.server.modules.products.dto.ProductResponseDto;
 import mtzg.carlos.server.utils.Utilities;
 
@@ -56,6 +57,27 @@ public class ProductService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while fetching products.");
+        }
+    }
+
+    @Transactional
+    public ResponseEntity<Object> registerProduct(ProductRegisterDto dto) {
+        try {
+            if (productRepository.findByNameIgnoreCase(dto.getName()).isPresent()) {
+                return Utilities.simpleResponse(HttpStatus.CONFLICT, "Product with this name already exists");
+            }
+
+            ProductModel product = ProductModel.builder()
+                    .uuid(UUID.randomUUID())
+                    .name(dto.getName())
+                    .description(dto.getDescription())
+                    .basePrice(dto.getBasePrice())
+                    .build();
+            productRepository.save(product);
+            return Utilities.simpleResponse(HttpStatus.CREATED, "Product registered successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while registering the product.");
         }
     }
 }

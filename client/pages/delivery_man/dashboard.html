@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Panel de Repartidor - Mi Ruta</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="../../assets/bootstrap/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Dashboard Custom CSS -->
+    <link href="./dashboard.css" rel="stylesheet">
+
+    <!--
+        TODO: Integrar PWA elementos
+        - Referencia al manifest.json para instalación de la app
+        - Service Worker (sw.js) para funcionalidad offline
+    -->
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0">Sistema de Abarrotes</span>
+            <button class="btn btn-logout" id="logoutBtn">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <!-- Título Principal -->
+        <h2 class="page-title">Mi Ruta del Día</h2>
+
+        <!-- Sección de Información Personal -->
+        <div class="card welcome-card mb-4">
+            <div class="card-body">
+                <h4 class="welcome-title">Bienvenido, <span id="deliveryManName">Repartidor</span></h4>
+                <p class="welcome-text">Aquí está tu ruta del día</p>
+            </div>
+        </div>
+
+        <!-- Lista de Tiendas a Visitar (Ruta del Día) -->
+        <div class="card stores-card">
+            <div class="card-header">
+                <h5>Tiendas a Visitar</h5>
+            </div>
+            <div class="card-body p-0">
+                <!-- List Group de Bootstrap -->
+                <div class="list-group list-group-flush" id="storesListContainer">
+                    <!-- Las tiendas se cargarán dinámicamente desde JavaScript -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border spinner-border-custom" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Cargando tiendas...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de mensajes -->
+        <div id="messageArea" class="mt-3"></div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="../../assets/bootstrap/js/bootstrap.js"></script>
+
+    <!-- Properties (BASE_URL) -->
+    <script src="../../properties.js"></script>
+
+    <!-- Dashboard JS -->
+    <script src="./dashboard.js"></script>
+</body>
+</html>

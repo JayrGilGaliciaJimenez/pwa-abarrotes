@@ -1,6 +1,8 @@
 package mtzg.carlos.server.modules.stores;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +36,29 @@ public class StoreService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while retrieving stores.");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<Object> getStoreByUuid(UUID uuid) {
+        try {
+            Optional<StoreModel> storeOpt = storeRepository.findByUuid(uuid);
+            if (storeOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
+            }
+            StoreModel store = storeOpt.get();
+            StoreResponseDto storeDto = StoreResponseDto.builder()
+                    .uuid(store.getUuid())
+                    .name(store.getName())
+                    .address(store.getAddress())
+                    .latitude(store.getLatitude())
+                    .longitude(store.getLongitude())
+                    .build();
+            return Utilities.generateResponse(HttpStatus.OK, "Store retrieved successfully", storeDto);
+
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while fetching the store.");
         }
     }
 }

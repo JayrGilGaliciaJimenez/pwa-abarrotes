@@ -1,4 +1,4 @@
-package mtzg.carlos.server.modules.user.dto;
+package mtzg.carlos.server.modules.users.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

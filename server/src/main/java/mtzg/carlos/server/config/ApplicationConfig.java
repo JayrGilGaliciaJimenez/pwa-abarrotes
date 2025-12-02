@@ -12,7 +12,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import lombok.RequiredArgsConstructor;
-import mtzg.carlos.server.modules.user.IUserRepository;
+import mtzg.carlos.server.modules.users.IUserRepository;
 
 @Configuration
 @RequiredArgsConstructor

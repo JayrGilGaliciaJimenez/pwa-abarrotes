@@ -34,7 +34,7 @@ public class OrderModel {
     private Long id;
 
     @Column(name = "quantity", nullable = false)
-    private Long quantity;
+    private Integer quantity;
 
     @Column(name = "unit_price", nullable = false)
     private Double unitPrice;

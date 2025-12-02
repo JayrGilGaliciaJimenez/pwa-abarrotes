@@ -44,10 +44,10 @@ public class StoreModel {
     private String address;
 
     @Column(name = "latitude", nullable = false)
-    private String latitude;
+    private Double latitude;
 
     @Column(name = "longitude", nullable = false)
-    private String longitude;
+    private Double longitude;
 
     @Column(name = "qr_code", nullable = false)
     private String qrCode;

@@ -10,4 +10,6 @@ import org.springframework.stereotype.Repository;
 public interface IProductRepository extends JpaRepository<ProductModel, Long> {
 
     Optional<ProductModel> findByUuid(UUID uuid);
+
+    Optional<ProductModel> findByNameIgnoreCase(String name);
 }

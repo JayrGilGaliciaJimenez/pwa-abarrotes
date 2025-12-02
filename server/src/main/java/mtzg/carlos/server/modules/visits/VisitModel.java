@@ -42,11 +42,11 @@ public class VisitModel {
     private boolean validation;
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = true)
+    @JoinColumn(name = "user_id", nullable = false)
     private UserModel user;
 
     @ManyToOne
-    @JoinColumn(name = "store_id", nullable = true)
+    @JoinColumn(name = "store_id", nullable = false)
     private StoreModel store;
 
     @OneToMany(mappedBy = "visit")

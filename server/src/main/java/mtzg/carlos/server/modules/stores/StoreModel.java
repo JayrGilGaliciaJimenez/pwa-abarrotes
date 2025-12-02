@@ -4,6 +4,7 @@ import java.util.Set;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -43,12 +44,12 @@ public class StoreModel {
     @Column(name = "qr_code", nullable = false)
     private String qrCode;
 
-    @ManyToMany(mappedBy = "stores")
+    @ManyToMany(mappedBy = "stores", fetch = FetchType.LAZY)
     private Set<ProductModel> products;
 
-    @ManyToMany(mappedBy = "stores")
+    @ManyToMany(mappedBy = "stores", fetch = FetchType.LAZY)
     private Set<UserModel> users;
 
-    @OneToMany(mappedBy = "store")
+    @OneToMany(mappedBy = "store", fetch = FetchType.LAZY)
     private Set<VisitModel> visits;
 }

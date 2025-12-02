@@ -28,6 +28,10 @@ spring.jpa.show-sql=${SPRING_JPA_SHOW_SQL:true}
 
 # Secret Key
 jwt.secret=${JWT_SECRET:YOUR_SECRET_KEY_HERE}
+
+# QR Code Configuration
+spring.web.resources.static-locations=classpath:/static/,file:qr/
+qr.content.path=http://localhost:8080/api/v1/stores/
 ```
 
 > **Note:**  

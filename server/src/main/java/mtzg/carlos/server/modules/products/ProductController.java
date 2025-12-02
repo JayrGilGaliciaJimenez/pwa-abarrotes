@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mtzg.carlos.server.modules.products.dto.ProductRegisterDto;
+import mtzg.carlos.server.modules.products.dto.ProductUpdateDto;
 
 @RestController
 @RequestMapping("/api/v1/products")
@@ -34,5 +36,11 @@ public class ProductController {
     @PostMapping("")
     public ResponseEntity<Object> registerProduct(@RequestBody @Valid ProductRegisterDto request) {
         return productService.registerProduct(request);
+    }
+
+    @PutMapping("/{uuid}")
+    public ResponseEntity<Object> updateProduct(@PathVariable("uuid") UUID uuid,
+            @RequestBody @Valid ProductUpdateDto dto) {
+        return productService.updateProduct(uuid, dto);
     }
 }

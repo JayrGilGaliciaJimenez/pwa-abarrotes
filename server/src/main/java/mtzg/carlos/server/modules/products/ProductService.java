@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import mtzg.carlos.server.modules.products.dto.ProductRegisterDto;
 import mtzg.carlos.server.modules.products.dto.ProductResponseDto;
+import mtzg.carlos.server.modules.products.dto.ProductUpdateDto;
 import mtzg.carlos.server.utils.Utilities;
 
 @Service
@@ -78,6 +79,31 @@ public class ProductService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while registering the product.");
+        }
+    }
+
+    @Transactional
+    public ResponseEntity<Object> updateProduct(UUID uuid, ProductUpdateDto dto) {
+        try {
+            Optional<ProductModel> productOpt = productRepository.findByUuid(uuid);
+            if (!productOpt.isPresent()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Product not found");
+            }
+            ProductModel product = productOpt.get();
+            if (dto.getName() != null && !dto.getName().isBlank()) {
+                product.setName(dto.getName());
+            }
+            if (dto.getDescription() != null && !dto.getDescription().isBlank()) {
+                product.setDescription(dto.getDescription());
+            }
+            if (dto.getBasePrice() != null && dto.getBasePrice() > 0) {
+                product.setBasePrice(dto.getBasePrice());
+            }
+            productRepository.save(product);
+            return Utilities.simpleResponse(HttpStatus.OK, "Product updated successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while updating the product.");
         }
     }
 }

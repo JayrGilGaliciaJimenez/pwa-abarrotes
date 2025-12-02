@@ -79,22 +79,24 @@ public class StoreService {
             }
 
             UUID uuid = UUID.randomUUID();
-            String qrPath = generateQrForStore(uuid);
-
             StoreModel store = StoreModel.builder()
                     .uuid(uuid)
                     .name(dto.getName())
                     .address(dto.getAddress())
                     .latitude(dto.getLatitude())
                     .longitude(dto.getLongitude())
-                    .qrCode(qrPath)
                     .build();
 
             storeRepository.save(store);
+
+            String qrPath = generateQrForStore(store.getUuid());
+            store.setQrCode(qrPath);
+            storeRepository.save(store);
+
             return Utilities.simpleResponse(HttpStatus.CREATED, "Store registered successfully");
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "An error occurred while registering the store.");
+                    "An error occurred while registering the store: " + e.getMessage());
         }
     }
 
@@ -140,9 +142,11 @@ public class StoreService {
             }
             StoreModel store = storeOpt.get();
 
-            if (store.getVisits() != null && !store.getVisits().isEmpty()) {
+            if ((store.getVisits() != null && !store.getVisits().isEmpty()) ||
+                    (store.getProducts() != null && !store.getProducts().isEmpty()) ||
+                    (store.getUsers() != null && !store.getUsers().isEmpty())) {
                 return Utilities.simpleResponse(HttpStatus.CONFLICT,
-                        "Store cannot be deleted as it has associated visits.");
+                        "Store cannot be deleted as it has associated data.");
             }
             storeRepository.delete(store);
             return Utilities.simpleResponse(HttpStatus.OK, "Store deleted successfully");
@@ -156,7 +160,7 @@ public class StoreService {
         try {
             String qrContent = qrContentPath + uuid;
             String qrFileName = "store_" + uuid;
-            return QrUtils.generateQrImage(qrContent, qrFileName);
+            return QrUtils.generateQrImage(qrContent, qrFileName, "qr");
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate QR code for store", e);
         }

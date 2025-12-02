@@ -75,22 +75,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
 
-                // Verificar si el usuario tiene rol ADMIN
+                // Verificar el rol del usuario
                 const isAdmin = payload.role.some(r => r.authority === 'ADMIN');
+                const isUser = payload.role.some(r => r.authority === 'USER');
 
-                if (isAdmin) {
+                if (isAdmin || isUser) {
                     showMessage('¡Credenciales válidas! Redirigiendo a Dashboard...', 'success');
 
                     // Guardar el token y datos del usuario
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(payload));
 
+                    // Determinar la ruta según el rol
+                    let dashboardUrl = '';
+                    if (isAdmin) {
+                        dashboardUrl = './pages/admin/dashboard.html';
+                    } else if (isUser) {
+                        dashboardUrl = './pages/delivery_man/dashboard.html';
+                    }
+
                     // Redirigir al dashboard después de un breve delay
                     setTimeout(function() {
-                        window.location.href = './pages/admin/dashboard.html';
+                        window.location.href = dashboardUrl;
                     }, 1500);
                 } else {
-                    showMessage('Acceso denegado. Solo los administradores pueden acceder.', 'warning');
+                    showMessage('Acceso denegado. No tienes permisos para acceder al sistema.', 'warning');
                 }
             } else {
                 // Manejar errores HTTP (401, 403, etc.)

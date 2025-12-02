@@ -37,11 +37,11 @@ public class OrderModel {
     private Double total;
 
     @ManyToOne
-    @JoinColumn(name = "visit_id", nullable = true)
+    @JoinColumn(name = "visit_id", nullable = false)
     private VisitModel visit;
 
     @ManyToOne
-    @JoinColumn(name = "product_id", nullable = true)
+    @JoinColumn(name = "product_id", nullable = false)
     private ProductModel product;
 
 }

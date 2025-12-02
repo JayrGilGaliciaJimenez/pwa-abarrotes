@@ -15,17 +15,23 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import mtzg.carlos.server.modules.orders.OrderModel;
 import mtzg.carlos.server.modules.stores.StoreModel;
 
+@Getter
+@Setter
 @Entity
-@Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "product")
+@ToString(exclude = { "stores", "orders" })
+@EqualsAndHashCode(exclude = { "stores", "orders" })
+@Table(name = "products")
 public class ProductModel {
 
     @Id

@@ -3,8 +3,10 @@ package mtzg.carlos.server.modules.visits;
 import java.time.LocalDate;
 import java.util.Set;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -14,17 +16,23 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 import mtzg.carlos.server.modules.orders.OrderModel;
 import mtzg.carlos.server.modules.stores.StoreModel;
 import mtzg.carlos.server.modules.users.UserModel;
 
-@Entity
-@Data
+@Getter
+@Setter
 @Builder
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
+@ToString(exclude = { "user", "store", "orders" })
+@EqualsAndHashCode(exclude = { "user", "store", "orders" })
+@Entity
 @Table(name = "visits")
 public class VisitModel {
 
@@ -49,7 +57,7 @@ public class VisitModel {
     @JoinColumn(name = "store_id", nullable = false)
     private StoreModel store;
 
-    @OneToMany(mappedBy = "visit")
+    @OneToMany(mappedBy = "visit", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Set<OrderModel> orders;
 
 }

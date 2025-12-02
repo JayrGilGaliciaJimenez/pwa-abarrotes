@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,12 +24,13 @@ import mtzg.carlos.server.modules.visits.VisitModel;
 
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = { "products", "users", "visits" })
 @EqualsAndHashCode(exclude = { "products", "users", "visits" })
 @Entity
-@Table(name = "store")
+@Table(name = "stores")
 public class StoreModel {
 
     @Id

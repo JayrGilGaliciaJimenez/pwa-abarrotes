@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import mtzg.carlos.server.modules.stores.dto.StoreRegisterDto;
+import mtzg.carlos.server.modules.stores.dto.StoreUpdateDto;
 
 @RestController
 @RequestMapping("/api/v1/stores")
@@ -34,5 +36,10 @@ public class StoreController {
     @PostMapping("")
     public ResponseEntity<Object> registerStore(@RequestBody @Valid StoreRegisterDto dto) {
         return storeService.registerStore(dto);
+    }
+
+    @PutMapping("/{uuid}")
+    public ResponseEntity<Object> updateStore(@PathVariable("uuid") UUID uuid, @RequestBody @Valid StoreUpdateDto dto) {
+        return storeService.updateStore(uuid, dto);
     }
 }

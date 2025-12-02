@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import mtzg.carlos.server.modules.stores.dto.StoreRegisterDto;
 import mtzg.carlos.server.modules.stores.dto.StoreResponseDto;
+import mtzg.carlos.server.modules.stores.dto.StoreUpdateDto;
 import mtzg.carlos.server.utils.QrUtils;
 import mtzg.carlos.server.utils.Utilities;
 
@@ -94,6 +95,39 @@ public class StoreService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while registering the store.");
+        }
+    }
+
+    @Transactional
+    public ResponseEntity<Object> updateStore(UUID uuid, StoreUpdateDto dto) {
+        try {
+            Optional<StoreModel> storeOpt = storeRepository.findByUuid(uuid);
+            if (storeOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
+            }
+            StoreModel store = storeOpt.get();
+            if (dto.getName() != null && !dto.getName().isBlank()) {
+                Optional<StoreModel> existingStoreOpt = storeRepository.findByNameIgnoreCase(dto.getName());
+                if (existingStoreOpt.isPresent() && !existingStoreOpt.get().getUuid().equals(uuid)) {
+                    return Utilities.simpleResponse(HttpStatus.CONFLICT,
+                            "Another store with this name already exists");
+                }
+                store.setName(dto.getName());
+            }
+            if (dto.getAddress() != null && !dto.getAddress().isBlank()) {
+                store.setAddress(dto.getAddress());
+            }
+            if (dto.getLatitude() != null) {
+                store.setLatitude(dto.getLatitude());
+            }
+            if (dto.getLongitude() != null) {
+                store.setLongitude(dto.getLongitude());
+            }
+            storeRepository.save(store);
+            return Utilities.simpleResponse(HttpStatus.OK, "Store updated successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while updating the store.");
         }
     }
 

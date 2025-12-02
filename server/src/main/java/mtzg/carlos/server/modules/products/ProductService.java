@@ -57,7 +57,7 @@ public class ProductService {
             return Utilities.generateResponse(HttpStatus.OK, "Product retrieved successfully", productDto);
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "An error occurred while fetching products.");
+                    "An error occurred while fetching the product.");
         }
     }
 

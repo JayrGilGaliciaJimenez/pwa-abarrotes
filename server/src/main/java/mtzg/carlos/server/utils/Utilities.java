@@ -20,6 +20,15 @@ public class Utilities {
         return new ResponseEntity<>(map, status);
     }
 
+    public static ResponseEntity<Object> generateResponse(HttpStatus status, String message, Object object) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("date", new Date());
+        map.put("status", status.value());
+        map.put("message", message);
+        map.put("data", object);
+        return new ResponseEntity<>(map, status);
+    }
+
     public static ResponseEntity<Object> authResponse(HttpStatus status, String message, String token) {
         Map<String, Object> map = new HashMap<>();
         map.put("date", new Date());

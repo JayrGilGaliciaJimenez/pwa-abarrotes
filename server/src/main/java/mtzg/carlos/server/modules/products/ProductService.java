@@ -90,7 +90,13 @@ public class ProductService {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Product not found");
             }
             ProductModel product = productOpt.get();
+
             if (dto.getName() != null && !dto.getName().isBlank()) {
+                Optional<ProductModel> existingProductOpt = productRepository.findByNameIgnoreCase(dto.getName());
+                if (existingProductOpt.isPresent() && !existingProductOpt.get().getUuid().equals(uuid)) {
+                    return Utilities.simpleResponse(HttpStatus.CONFLICT,
+                            "Another product with this name already exists");
+                }
                 product.setName(dto.getName());
             }
             if (dto.getDescription() != null && !dto.getDescription().isBlank()) {

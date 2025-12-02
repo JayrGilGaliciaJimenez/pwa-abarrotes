@@ -27,13 +27,13 @@ public class OrderModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "quantity")
+    @Column(name = "quantity", nullable = false)
     private Long quantity;
 
-    @Column(name = "unit_price")
+    @Column(name = "unit_price", nullable = false)
     private Double unitPrice;
 
-    @Column(name = "total")
+    @Column(name = "total", nullable = false)
     private Double total;
 
     @ManyToOne

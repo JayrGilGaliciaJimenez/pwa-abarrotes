@@ -36,29 +36,73 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     /**
-     * Simula la autenticación del usuario
+     * Autentica al usuario consumiendo el endpoint del backend
      * @param {string} email - Email del usuario
      * @param {string} password - Contraseña del usuario
      */
-    function authenticateUser(email, password) {
+    async function authenticateUser(email, password) {
         // Mostrar mensaje de carga
         showMessage('Verificando credenciales...', 'info');
 
-        // Simular delay de autenticación
-        setTimeout(function() {
-            // Validación simple: si el email es 'admin@ejemplo.com' se considera válido
-            if (email === 'admin@ejemplo.com') {
-                showMessage('¡Credenciales válidas! Redirigiendo a Dashboard...', 'success');
+        try {
+            // Realizar la petición al endpoint de autenticación
+            const response = await fetch(`${BASE_URL}/auth/authenticate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email: email,
+                    password: password
+                })
+            });
 
-                // Aquí podrías redirigir al dashboard después de un breve delay
-                setTimeout(function() {
-                    // window.location.href = '/dashboard.html';
-                    console.log('Redirección al dashboard (comentado para desarrollo)');
-                }, 1500);
+            // Verificar si la respuesta fue exitosa
+            if (response.ok) {
+                const data = await response.json();
+
+                // Verificar que exista el token en la respuesta
+                if (!data.token) {
+                    showMessage('Error: No se recibió token de autenticación.', 'danger');
+                    return;
+                }
+
+                // Decodificar el JWT para obtener el rol
+                const payload = decodeJWT(data.token);
+
+                if (!payload || !payload.role) {
+                    showMessage('Error: No se pudo obtener el rol del usuario.', 'danger');
+                    return;
+                }
+
+                // Verificar si el usuario tiene rol ADMIN
+                const isAdmin = payload.role.some(r => r.authority === 'ADMIN');
+
+                if (isAdmin) {
+                    showMessage('¡Credenciales válidas! Redirigiendo a Dashboard...', 'success');
+
+                    // Guardar el token y datos del usuario
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(payload));
+
+                    // Redirigir al dashboard después de un breve delay
+                    setTimeout(function() {
+                        window.location.href = './pages/admin/dashboard.html';
+                    }, 1500);
+                } else {
+                    showMessage('Acceso denegado. Solo los administradores pueden acceder.', 'warning');
+                }
             } else {
-                showMessage('Credenciales inválidas. Por favor, intenta de nuevo.', 'danger');
+                // Manejar errores HTTP (401, 403, etc.)
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData.message || 'Credenciales inválidas. Por favor, intenta de nuevo.';
+                showMessage(errorMessage, 'danger');
             }
-        }, 1000); // Simular 1 segundo de procesamiento
+        } catch (error) {
+            // Manejar errores de red o del servidor
+            console.error('Error de autenticación:', error);
+            showMessage('Error al conectar con el servidor. Por favor, intenta más tarde.', 'danger');
+        }
     }
 
     /**
@@ -69,6 +113,36 @@ document.addEventListener('DOMContentLoaded', function() {
     function isValidEmail(email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
+    }
+
+    /**
+     * Decodifica un JWT y retorna el payload
+     * @param {string} token - Token JWT a decodificar
+     * @returns {object|null} - Payload decodificado o null si hay error
+     */
+    function decodeJWT(token) {
+        try {
+            // Un JWT tiene 3 partes separadas por puntos: header.payload.signature
+            const parts = token.split('.');
+            if (parts.length !== 3) {
+                console.error('Token JWT inválido');
+                return null;
+            }
+
+            // Decodificar la parte del payload (segunda parte)
+            const payload = parts[1];
+
+            // Decodificar de Base64URL a string
+            const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            return JSON.parse(jsonPayload);
+        } catch (error) {
+            console.error('Error al decodificar JWT:', error);
+            return null;
+        }
     }
 
     /**
@@ -85,4 +159,5 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         messageArea.innerHTML = alertHTML;
     }
+
 });

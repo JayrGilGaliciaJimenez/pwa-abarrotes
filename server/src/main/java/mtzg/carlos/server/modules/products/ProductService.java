@@ -44,7 +44,7 @@ public class ProductService {
     public ResponseEntity<Object> getProductByUuid(UUID uuid) {
         try {
             Optional<ProductModel> productOpt = productRepository.findByUuid(uuid);
-            if (!productOpt.isPresent()) {
+            if (productOpt.isEmpty()) {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Product not found");
             }
             ProductModel product = productOpt.get();
@@ -86,7 +86,7 @@ public class ProductService {
     public ResponseEntity<Object> updateProduct(UUID uuid, ProductUpdateDto dto) {
         try {
             Optional<ProductModel> productOpt = productRepository.findByUuid(uuid);
-            if (!productOpt.isPresent()) {
+            if (productOpt.isEmpty()) {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Product not found");
             }
             ProductModel product = productOpt.get();
@@ -117,7 +117,7 @@ public class ProductService {
     public ResponseEntity<Object> deleteProduct(UUID uuid) {
         try {
             Optional<ProductModel> productOpt = productRepository.findByUuid(uuid);
-            if (!productOpt.isPresent()) {
+            if (productOpt.isEmpty()) {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Product not found");
             }
             ProductModel product = productOpt.get();

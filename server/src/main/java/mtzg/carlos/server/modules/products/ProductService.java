@@ -106,4 +106,24 @@ public class ProductService {
                     "An error occurred while updating the product.");
         }
     }
+
+    @Transactional
+    public ResponseEntity<Object> deleteProduct(UUID uuid) {
+        try {
+            Optional<ProductModel> productOpt = productRepository.findByUuid(uuid);
+            if (!productOpt.isPresent()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Product not found");
+            }
+            ProductModel product = productOpt.get();
+            if (product.getOrders() != null && !product.getOrders().isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.CONFLICT,
+                        "Cannot delete product associated with existing orders.");
+            }
+            productRepository.delete(product);
+            return Utilities.simpleResponse(HttpStatus.OK, "Product deleted successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while deleting the product.");
+        }
+    }
 }

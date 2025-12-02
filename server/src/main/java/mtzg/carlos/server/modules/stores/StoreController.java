@@ -1,11 +1,18 @@
 package mtzg.carlos.server.modules.stores;
 
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.stores.dto.StoreRegisterDto;
 
 @RestController
 @RequestMapping("/api/v1/stores")
@@ -17,5 +24,15 @@ public class StoreController {
     @GetMapping("")
     public ResponseEntity<Object> findAllStores() {
         return storeService.getAllStores();
+    }
+
+    @GetMapping("/{uuid}")
+    public ResponseEntity<Object> findStoreByUuid(@PathVariable("uuid") UUID uuid) {
+        return storeService.getStoreByUuid(uuid);
+    }
+
+    @PostMapping("")
+    public ResponseEntity<Object> registerStore(@RequestBody @Valid StoreRegisterDto dto) {
+        return storeService.registerStore(dto);
     }
 }

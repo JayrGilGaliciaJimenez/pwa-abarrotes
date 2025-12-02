@@ -131,6 +131,27 @@ public class StoreService {
         }
     }
 
+    @Transactional
+    public ResponseEntity<Object> deleteStore(UUID uuid) {
+        try {
+            Optional<StoreModel> storeOpt = storeRepository.findByUuid(uuid);
+            if (storeOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
+            }
+            StoreModel store = storeOpt.get();
+
+            if (store.getVisits() != null && !store.getVisits().isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.CONFLICT,
+                        "Store cannot be deleted as it has associated visits.");
+            }
+            storeRepository.delete(store);
+            return Utilities.simpleResponse(HttpStatus.OK, "Store deleted successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while deleting the store.");
+        }
+    }
+
     private String generateQrForStore(UUID uuid) {
         try {
             String qrContent = qrContentPath + uuid;

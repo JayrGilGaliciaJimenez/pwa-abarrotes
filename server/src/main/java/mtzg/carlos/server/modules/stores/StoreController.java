@@ -3,6 +3,7 @@ package mtzg.carlos.server.modules.stores;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,5 +42,10 @@ public class StoreController {
     @PutMapping("/{uuid}")
     public ResponseEntity<Object> updateStore(@PathVariable("uuid") UUID uuid, @RequestBody @Valid StoreUpdateDto dto) {
         return storeService.updateStore(uuid, dto);
+    }
+
+    @DeleteMapping("/{uuid}")
+    public ResponseEntity<Object> deleteStore(@PathVariable("uuid") UUID uuid) {
+        return storeService.deleteStore(uuid);
     }
 }

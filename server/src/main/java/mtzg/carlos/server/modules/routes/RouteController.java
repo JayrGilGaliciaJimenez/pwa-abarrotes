@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.routes.dto.RouteRequestDto;
 
 @RestController
 @RequestMapping("/api/v1/routes")

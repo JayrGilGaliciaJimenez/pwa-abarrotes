@@ -1,4 +1,4 @@
-package mtzg.carlos.server.modules.routes;
+package mtzg.carlos.server.modules.routes.dto;
 
 import java.util.UUID;
 

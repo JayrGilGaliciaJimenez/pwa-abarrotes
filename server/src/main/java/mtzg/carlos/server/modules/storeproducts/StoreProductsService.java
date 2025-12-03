@@ -43,7 +43,12 @@ public class StoreProductsService {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "No valid products found to assign.");
             }
 
-            products.forEach(product -> product.getStores().add(store));
+            products.forEach(product -> {
+                if (product.getStores() == null) {
+                    product.setStores(new java.util.HashSet<>());
+                }
+                product.getStores().add(store);
+            });
             productRepository.saveAll(products);
             return Utilities.simpleResponse(HttpStatus.OK, "Products assigned to store successfully.");
         } catch (Exception e) {

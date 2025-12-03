@@ -1,6 +1,7 @@
 package mtzg.carlos.server.auth;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +34,7 @@ public class AuthService {
                         return Utilities.simpleResponse(HttpStatus.CONFLICT, "Unable to complete registration");
                 }
                 var user = UserModel.builder()
+                                .uuid(UUID.randomUUID())
                                 .name(request.getName())
                                 .email(request.getEmail())
                                 .password(passwordEncoder.encode(request.getPassword()))

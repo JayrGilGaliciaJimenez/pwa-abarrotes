@@ -30,7 +30,7 @@ public class StoreService {
     @Transactional(readOnly = true)
     public ResponseEntity<Object> getAllStores() {
         try {
-            List<StoreModel> stores = storeRepository.findAll();
+            List<StoreModel> stores = storeRepository.findAllWithProducts();
             List<StoreResponseDto> storesDto = stores.stream()
                     .map(store -> StoreResponseDto.builder()
                             .uuid(store.getUuid())

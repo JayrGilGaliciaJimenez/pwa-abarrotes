@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.products.dto.ProductResponseDto;
 import mtzg.carlos.server.modules.stores.dto.StoreRegisterDto;
 import mtzg.carlos.server.modules.stores.dto.StoreResponseDto;
 import mtzg.carlos.server.modules.stores.dto.StoreUpdateDto;
@@ -29,7 +30,7 @@ public class StoreService {
     @Transactional(readOnly = true)
     public ResponseEntity<Object> getAllStores() {
         try {
-            List<StoreModel> stores = storeRepository.findAll();
+            List<StoreModel> stores = storeRepository.findAllWithProducts();
             List<StoreResponseDto> storesDto = stores.stream()
                     .map(store -> StoreResponseDto.builder()
                             .uuid(store.getUuid())
@@ -38,6 +39,16 @@ public class StoreService {
                             .latitude(store.getLatitude())
                             .longitude(store.getLongitude())
                             .qrCode(store.getQrCode())
+                            .products(
+                                    store.getProducts() == null ? List.of()
+                                            : store.getProducts().stream()
+                                                    .map(product -> ProductResponseDto.builder()
+                                                            .uuid(product.getUuid())
+                                                            .name(product.getName())
+                                                            .description(product.getDescription())
+                                                            .basePrice(product.getBasePrice())
+                                                            .build())
+                                                    .toList())
                             .build())
                     .toList();
             return Utilities.generateResponse(HttpStatus.OK, "Stores retrieved successfully", storesDto);
@@ -62,6 +73,16 @@ public class StoreService {
                     .latitude(store.getLatitude())
                     .longitude(store.getLongitude())
                     .qrCode(store.getQrCode())
+                    .products(
+                            store.getProducts() == null ? List.of()
+                                    : store.getProducts().stream()
+                                            .map(product -> ProductResponseDto.builder()
+                                                    .uuid(product.getUuid())
+                                                    .name(product.getName())
+                                                    .description(product.getDescription())
+                                                    .basePrice(product.getBasePrice())
+                                                    .build())
+                                            .toList())
                     .build();
             return Utilities.generateResponse(HttpStatus.OK, "Store retrieved successfully", storeDto);
 

@@ -1,5 +1,6 @@
 package mtzg.carlos.server.modules.stores.dto;
 
+import java.util.List;
 import java.util.UUID;
 
 import lombok.AllArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import mtzg.carlos.server.modules.products.dto.ProductResponseDto;
 
 @Getter
 @Setter
@@ -21,4 +23,5 @@ public class StoreResponseDto {
     private Double latitude;
     private Double longitude;
     private String qrCode;
+    private List<ProductResponseDto> products;
 }

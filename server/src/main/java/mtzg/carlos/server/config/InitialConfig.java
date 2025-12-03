@@ -1,5 +1,7 @@
 package mtzg.carlos.server.config;
 
+import java.util.UUID;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +25,7 @@ public class InitialConfig {
             if (userRepository.count() == 0) {
 
                 UserModel admin = UserModel.builder()
+                        .uuid(UUID.randomUUID())
                         .name("Administrador")
                         .email("admin@example.com")
                         .password(passwordEncoder.encode("admin123"))
@@ -30,6 +33,7 @@ public class InitialConfig {
                         .build();
 
                 UserModel user = UserModel.builder()
+                        .uuid(UUID.randomUUID())
                         .name("Usuario Normal")
                         .email("user@example.com")
                         .password(passwordEncoder.encode("user123"))

@@ -36,7 +36,11 @@ public class RouteService {
             }
             StoreModel store = storeOpt.get();
 
+            if (user.getStores().contains(store)) {
+                return Utilities.simpleResponse(HttpStatus.CONFLICT, "Store is already assigned to this user.");
+            }
             user.getStores().add(store);
+            userRepository.save(user);
             return Utilities.simpleResponse(HttpStatus.OK, "Store assigned to user successfully.");
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,

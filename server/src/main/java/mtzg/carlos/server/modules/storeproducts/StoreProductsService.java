@@ -50,8 +50,16 @@ public class StoreProductsService {
                 if (!product.getStores().contains(store)) {
                     product.getStores().add(store);
                 }
+                
+                if (store.getProducts() == null) {
+                    store.setProducts(new java.util.HashSet<>());
+                }
+                if (!store.getProducts().contains(product)) {
+                    store.getProducts().add(product);
+                }
             });
             productRepository.saveAll(products);
+            storeRepository.save(store);
             return Utilities.simpleResponse(HttpStatus.OK, "Products assigned to store successfully");
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,

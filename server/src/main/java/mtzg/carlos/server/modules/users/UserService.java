@@ -21,7 +21,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public ResponseEntity<Object> getAllUsers() {
         try {
-            List<UserModel> users = userRepository.findAll();
+            List<UserModel> users = userRepository.findAllWithStores();
             List<UserResponseDto> usersDto = users.stream()
                     .map(user -> UserResponseDto.builder()
                             .uuid(user.getUuid())

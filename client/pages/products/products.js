@@ -1,62 +1,26 @@
 /**
  * Products Page JavaScript
- * Maneja el CRUD de productos con datos simulados
+ * Maneja el CRUD de productos conectado al backend
  */
 
-// Datos simulados de productos
-let products = [
-    {
-        id: 1,
-        name: "Arroz 1kg",
-        description: "Arroz blanco grano largo de primera calidad",
-        price: 25.50
-    },
-    {
-        id: 2,
-        name: "El Nori es gay",
-        description: "Y su novio es el Millan Guillen",
-        price: 32.00
-    },
-    {
-        id: 3,
-        name: "Aceite Vegetal 1L",
-        description: "Aceite vegetal 100% puro para cocinar",
-        price: 45.00
-    },
-    {
-        id: 4,
-        name: "Azúcar 1kg",
-        description: "Azúcar refinada de caña",
-        price: 22.50
-    },
-    {
-        id: 5,
-        name: "Sal de Mesa 1kg",
-        description: "Sal refinada yodada para uso doméstico",
-        price: 12.00
-    },
-    {
-        id: 6,
-        name: "Pasta Espagueti 500g",
-        description: "Pasta de trigo durum de alta calidad",
-        price: 18.50
-    },
-    {
-        id: 7,
-        name: "Harina de Trigo 1kg",
-        description: "Harina de trigo refinada para todo uso",
-        price: 28.00
-    },
-    {
-        id: 8,
-        name: "Leche Entera 1L",
-        description: "Leche entera pasteurizada y homogeneizada",
-        price: 24.50
-    }
-];
+// URL base de la API
+const API_BASE_URL = 'http://localhost:82/api/v1/products';
+
+/**
+ * Obtiene los headers con el token de autenticación
+ * @returns {Object} Headers para las peticiones
+ */
+function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
+}
 
 // Variables globales
-let currentProductId = null;
+let products = [];
+let currentProductUuid = null;
 let productModal = null;
 let deleteModal = null;
 
@@ -66,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
     productModal = new bootstrap.Modal(document.getElementById('productModal'));
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
 
-    // Cargar la tabla de productos
+    // Cargar la tabla de productos desde el servidor
     loadProductsTable();
 
     // Event Listeners
@@ -81,9 +45,56 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * Carga la tabla de productos dinámicamente
+ * Carga la tabla de productos desde el servidor
  */
-function loadProductsTable() {
+async function loadProductsTable() {
+    const tableBody = document.getElementById('productsTableBody');
+
+    // Mostrar estado de carga
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="5" class="empty-state">
+                <i class="bi bi-arrow-repeat" style="font-size: 3rem;"></i>
+                <p class="mt-2">Cargando productos...</p>
+            </td>
+        </tr>
+    `;
+
+    try {
+        const response = await fetch(API_BASE_URL, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        products = data.data || data || [];
+
+        renderProductsTable();
+    } catch (error) {
+        console.error('Error al cargar productos:', error);
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="5" class="empty-state">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #dc3545;"></i>
+                    <p class="mt-2">Error al cargar los productos</p>
+                    <p class="text-muted">${error.message}</p>
+                    <button class="btn btn-outline-secondary mt-2" onclick="loadProductsTable()">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Reintentar
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+/**
+ * Renderiza la tabla de productos
+ */
+function renderProductsTable() {
     const tableBody = document.getElementById('productsTableBody');
 
     if (products.length === 0) {
@@ -103,15 +114,15 @@ function loadProductsTable() {
     products.forEach(product => {
         html += `
             <tr>
-                <td>${product.id}</td>
-                <td>${product.name}</td>
-                <td>${product.description}</td>
-                <td>$${product.price.toFixed(2)}</td>
+                <td title="${product.uuid}">${product.uuid.substring(0, 8)}...</td>
+                <td>${escapeHtml(product.name)}</td>
+                <td>${escapeHtml(product.description)}</td>
+                <td>$${product.basePrice.toFixed(2)}</td>
                 <td class="text-center">
-                    <button class="btn btn-action btn-edit" onclick="openEditProductModal(${product.id})" title="Editar">
+                    <button class="btn btn-action btn-edit" onclick="openEditProductModal('${product.uuid}')" title="Editar">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-action btn-delete" onclick="openDeleteModal(${product.id})" title="Eliminar">
+                    <button class="btn btn-action btn-delete" onclick="openDeleteModal('${product.uuid}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -123,24 +134,35 @@ function loadProductsTable() {
 }
 
 /**
+ * Escapa caracteres HTML para prevenir XSS
+ * @param {string} text - Texto a escapar
+ * @returns {string} Texto escapado
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Abre el modal para agregar un nuevo producto
  */
 function openAddProductModal() {
-    currentProductId = null;
+    currentProductUuid = null;
     document.getElementById('productModalLabel').textContent = 'Agregar Producto';
     resetForm();
 }
 
 /**
  * Abre el modal para editar un producto existente
- * @param {number} productId - ID del producto a editar
+ * @param {string} uuid - UUID del producto a editar
  */
-function openEditProductModal(productId) {
-    currentProductId = productId;
-    const product = products.find(p => p.id === productId);
+function openEditProductModal(uuid) {
+    currentProductUuid = uuid;
+    const product = products.find(p => p.uuid === uuid);
 
     if (!product) {
-        alert('Producto no encontrado');
+        showToast('Producto no encontrado', 'error');
         return;
     }
 
@@ -148,10 +170,10 @@ function openEditProductModal(productId) {
     document.getElementById('productModalLabel').textContent = 'Editar Producto';
 
     // Llenar el formulario con los datos del producto
-    document.getElementById('productId').value = product.id;
+    document.getElementById('productId').value = product.uuid;
     document.getElementById('productName').value = product.name;
     document.getElementById('productDescription').value = product.description;
-    document.getElementById('productPrice').value = product.price;
+    document.getElementById('productPrice').value = product.basePrice;
 
     // Abrir el modal
     productModal.show();
@@ -160,8 +182,9 @@ function openEditProductModal(productId) {
 /**
  * Guarda el producto (crear o editar)
  */
-function saveProduct() {
+async function saveProduct() {
     const form = document.getElementById('productForm');
+    const btnSave = document.getElementById('btnSaveProduct');
 
     // Validar el formulario
     if (!form.checkValidity()) {
@@ -172,55 +195,68 @@ function saveProduct() {
     // Obtener los valores del formulario
     const name = document.getElementById('productName').value.trim();
     const description = document.getElementById('productDescription').value.trim();
-    const price = parseFloat(document.getElementById('productPrice').value);
+    const basePrice = parseFloat(document.getElementById('productPrice').value);
 
-    if (currentProductId === null) {
-        // Crear nuevo producto
-        const newProduct = {
-            id: products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1,
-            name: name,
-            description: description,
-            price: price
-        };
-        products.push(newProduct);
-        console.log('Producto creado:', newProduct);
-    } else {
-        // Editar producto existente
-        const productIndex = products.findIndex(p => p.id === currentProductId);
-        if (productIndex !== -1) {
-            products[productIndex] = {
-                ...products[productIndex],
-                name: name,
-                description: description,
-                price: price
-            };
-            console.log('Producto actualizado:', products[productIndex]);
+    // Deshabilitar botón mientras se procesa
+    btnSave.disabled = true;
+    btnSave.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Guardando...';
+
+    try {
+        let response;
+        const productData = { name, description, basePrice };
+
+        if (currentProductUuid === null) {
+            // Crear nuevo producto
+            response = await fetch(API_BASE_URL, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(productData)
+            });
+        } else {
+            // Editar producto existente
+            response = await fetch(`${API_BASE_URL}/${currentProductUuid}`, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(productData)
+            });
         }
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+        }
+
+        // Recargar la tabla
+        await loadProductsTable();
+
+        // Cerrar el modal
+        productModal.hide();
+
+        // Mostrar mensaje de éxito
+        showToast(currentProductUuid === null ? 'Producto agregado exitosamente' : 'Producto actualizado exitosamente', 'success');
+    } catch (error) {
+        console.error('Error al guardar producto:', error);
+        showToast(`Error al guardar: ${error.message}`, 'error');
+    } finally {
+        // Rehabilitar botón
+        btnSave.disabled = false;
+        btnSave.innerHTML = 'Guardar';
     }
-
-    // Recargar la tabla
-    loadProductsTable();
-
-    // Cerrar el modal
-    productModal.hide();
-
-    // Mostrar mensaje de éxito (opcional)
-    showToast(currentProductId === null ? 'Producto agregado exitosamente' : 'Producto actualizado exitosamente');
 }
 
 /**
  * Abre el modal de confirmación para eliminar un producto
- * @param {number} productId - ID del producto a eliminar
+ * @param {string} uuid - UUID del producto a eliminar
  */
-function openDeleteModal(productId) {
-    const product = products.find(p => p.id === productId);
+function openDeleteModal(uuid) {
+    const product = products.find(p => p.uuid === uuid);
 
     if (!product) {
-        alert('Producto no encontrado');
+        showToast('Producto no encontrado', 'error');
         return;
     }
 
-    currentProductId = productId;
+    currentProductUuid = uuid;
     document.getElementById('deleteProductName').textContent = product.name;
     deleteModal.show();
 }
@@ -228,24 +264,43 @@ function openDeleteModal(productId) {
 /**
  * Confirma y ejecuta la eliminación del producto
  */
-function confirmDelete() {
-    const productIndex = products.findIndex(p => p.id === currentProductId);
+async function confirmDelete() {
+    if (!currentProductUuid) return;
 
-    if (productIndex !== -1) {
-        const deletedProduct = products.splice(productIndex, 1)[0];
-        console.log('Producto eliminado:', deletedProduct);
+    const btnDelete = document.getElementById('btnConfirmDelete');
+
+    // Deshabilitar botón mientras se procesa
+    btnDelete.disabled = true;
+    btnDelete.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Eliminando...';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/${currentProductUuid}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+        }
 
         // Recargar la tabla
-        loadProductsTable();
+        await loadProductsTable();
 
         // Cerrar el modal
         deleteModal.hide();
 
         // Mostrar mensaje de éxito
-        showToast('Producto eliminado exitosamente');
+        showToast('Producto eliminado exitosamente', 'success');
+    } catch (error) {
+        console.error('Error al eliminar producto:', error);
+        showToast(`Error al eliminar: ${error.message}`, 'error');
+    } finally {
+        // Rehabilitar botón
+        btnDelete.disabled = false;
+        btnDelete.innerHTML = 'Eliminar';
+        currentProductUuid = null;
     }
-
-    currentProductId = null;
 }
 
 /**
@@ -254,14 +309,50 @@ function confirmDelete() {
 function resetForm() {
     document.getElementById('productForm').reset();
     document.getElementById('productId').value = '';
-    currentProductId = null;
+    currentProductUuid = null;
 }
 
 /**
- * Muestra un mensaje toast (simulado con console.log)
+ * Muestra un mensaje toast
  * @param {string} message - Mensaje a mostrar
+ * @param {string} type - Tipo de mensaje ('success', 'error', 'info')
  */
-function showToast(message) {
-    console.log('Toast:', message);
-    // En producción, aquí se podría usar Bootstrap Toast o una librería de notificaciones
+function showToast(message, type = 'info') {
+    // Crear contenedor de toasts si no existe
+    let toastContainer = document.getElementById('toastContainer');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toastContainer';
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = '1100';
+        document.body.appendChild(toastContainer);
+    }
+
+    // Determinar color según el tipo
+    const bgClass = type === 'success' ? 'bg-success' :
+                    type === 'error' ? 'bg-danger' : 'bg-info';
+
+    // Crear el toast
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${escapeHtml(message)}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+    toast.show();
+
+    // Eliminar el elemento después de que se oculte
+    toastElement.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+    });
 }

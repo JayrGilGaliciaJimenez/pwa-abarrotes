@@ -47,7 +47,9 @@ public class StoreProductsService {
                 if (product.getStores() == null) {
                     product.setStores(new java.util.HashSet<>());
                 }
-                product.getStores().add(store);
+                if (!product.getStores().contains(store)) {
+                    product.getStores().add(store);
+                }
             });
             productRepository.saveAll(products);
             return Utilities.simpleResponse(HttpStatus.OK, "Products assigned to store successfully");

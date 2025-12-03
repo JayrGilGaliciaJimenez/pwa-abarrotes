@@ -29,7 +29,7 @@ public class StoreProductsService {
         try {
             Optional<StoreModel> storeOpt = storeRepository.findByUuid(request.getStoreUuid());
             if (storeOpt.isEmpty()) {
-                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found.");
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
             }
             StoreModel store = storeOpt.get();
 
@@ -40,7 +40,7 @@ public class StoreProductsService {
                     .collect(Collectors.toSet());
 
             if (products.isEmpty()) {
-                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "No valid products found to assign.");
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "No valid products found to assign");
             }
 
             products.forEach(product -> {
@@ -50,10 +50,10 @@ public class StoreProductsService {
                 product.getStores().add(store);
             });
             productRepository.saveAll(products);
-            return Utilities.simpleResponse(HttpStatus.OK, "Products assigned to store successfully.");
+            return Utilities.simpleResponse(HttpStatus.OK, "Products assigned to store successfully");
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "An error occurred while assigning products to store.");
+                    "An error occurred while assigning products to store");
         }
     }
 }

@@ -3,10 +3,13 @@ package mtzg.carlos.server.modules.users;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,6 +43,9 @@ public class UserModel implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "uuid", nullable = false, unique = true)
+    private UUID uuid;
+
     @Column(name = "name", nullable = false)
     private String name;
 
@@ -54,6 +60,7 @@ public class UserModel implements UserDetails {
     private Role role;
 
     @ManyToMany
+    @JsonIgnore
     @JoinTable(name = "routes", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "store_id"))
     private Set<StoreModel> stores;
 

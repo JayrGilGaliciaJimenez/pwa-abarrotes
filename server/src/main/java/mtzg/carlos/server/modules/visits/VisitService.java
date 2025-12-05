@@ -1,5 +1,10 @@
 package mtzg.carlos.server.modules.visits;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -8,9 +13,21 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.orders.OrderModel;
+import mtzg.carlos.server.modules.orders.dto.OrderRegisterDto;
 import mtzg.carlos.server.modules.orders.dto.OrderResponseDto;
+import mtzg.carlos.server.modules.products.IProductRepository;
+import mtzg.carlos.server.modules.products.ProductModel;
+import mtzg.carlos.server.modules.stores.IStoreRepository;
+import mtzg.carlos.server.modules.stores.StoreModel;
+import mtzg.carlos.server.modules.users.IUserRepository;
+import mtzg.carlos.server.modules.users.UserModel;
 import mtzg.carlos.server.modules.visits.dto.VisitResponseDto;
 import mtzg.carlos.server.utils.Utilities;
 
@@ -19,6 +36,9 @@ import mtzg.carlos.server.utils.Utilities;
 public class VisitService {
 
     private final IVisitRepository visitRepository;
+    private final IUserRepository userRepository;
+    private final IStoreRepository storeRepository;
+    private final IProductRepository productRepository;
 
     @Transactional(readOnly = true)
     public ResponseEntity<Object> getAllVisits() {
@@ -85,4 +105,80 @@ public class VisitService {
         }
     }
 
+    @Transactional
+    public ResponseEntity<Object> registerVisit(UUID userUuid, UUID storeUuid, boolean validation, String ordersJson,
+            MultipartFile photo) {
+        try {
+            Optional<UserModel> userOpt = userRepository.findByUuid(userUuid);
+            if (userOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "User not found");
+            }
+
+            Optional<StoreModel> storeOpt = storeRepository.findByUuid(storeUuid);
+            if (storeOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
+            }
+
+            String photoPath = saveVisitPhoto(userOpt.get().getName(), storeOpt.get().getName(), photo, "uploads");
+
+            VisitModel visit = VisitModel.builder()
+                    .uuid(UUID.randomUUID())
+                    .date(LocalDate.now())
+                    .photo(photoPath)
+                    .validation(validation)
+                    .user(userOpt.get())
+                    .store(storeOpt.get())
+                    .build();
+
+            ObjectMapper mapper = new ObjectMapper();
+            List<OrderRegisterDto> orderDtos = mapper.readValue(ordersJson,
+                    new TypeReference<List<OrderRegisterDto>>() {
+                    });
+
+            if (orderDtos != null && !orderDtos.isEmpty()) {
+                List<OrderModel> orders = orderDtos.stream()
+                        .map(orderDto -> {
+                            Optional<ProductModel> productOpt = productRepository.findByUuid(orderDto.getProductUuid());
+                            if (productOpt.isEmpty()) {
+                                return null;
+                            }
+                            return OrderModel.builder()
+                                    .uuid(UUID.randomUUID())
+                                    .quantity(orderDto.getQuantity())
+                                    .unitPrice(productOpt.get().getBasePrice())
+                                    .total(orderDto.getQuantity() * productOpt.get().getBasePrice())
+                                    .product(productOpt.get())
+                                    .visit(visit)
+                                    .build();
+                        })
+                        .filter(order -> order != null)
+                        .toList();
+                visit.setOrders(new HashSet<>(orders));
+            }
+
+            visitRepository.save(visit);
+            return Utilities.simpleResponse(HttpStatus.CREATED, "Visit registered successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while registering the visit." + e.getMessage());
+        }
+    }
+
+    private String saveVisitPhoto(String userName, String storeName, MultipartFile photo, String baseDir)
+            throws Exception {
+        String rootPath = System.getProperty("user.dir");
+        String folder = rootPath + "/" + baseDir + "/";
+        Path uploadPath = Paths.get(folder);
+
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        String filename = "store_" + storeName + "_" + userName + "_" + System.currentTimeMillis() + "_"
+                + photo.getOriginalFilename();
+        Path filePath = uploadPath.resolve(filename);
+        photo.transferTo(filePath.toFile());
+
+        return filePath.toString();
+    }
 }

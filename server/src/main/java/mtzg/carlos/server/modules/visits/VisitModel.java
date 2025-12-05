@@ -2,6 +2,7 @@ package mtzg.carlos.server.modules.visits;
 
 import java.time.LocalDate;
 import java.util.Set;
+import java.util.UUID;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -39,6 +40,9 @@ public class VisitModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "uuid", nullable = false, unique = true)
+    private UUID uuid;
 
     @Column(name = "date", nullable = false)
     private LocalDate date;

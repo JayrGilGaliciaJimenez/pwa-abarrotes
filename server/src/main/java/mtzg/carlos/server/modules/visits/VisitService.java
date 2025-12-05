@@ -24,6 +24,7 @@ public class VisitService {
             List<VisitModel> visits = visitRepository.findAllWithOrders();
             List<VisitResponseDto> visitsDto = visits.stream()
                     .map(visit -> VisitResponseDto.builder()
+                            .uuid(visit.getUuid())
                             .userName(visit.getUser().getName())
                             .storeName(visit.getStore().getName())
                             .visitDate(visit.getDate())

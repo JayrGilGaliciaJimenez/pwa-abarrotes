@@ -10,6 +10,8 @@ class HybridSyncService {
     constructor() {
         this.dbProducts = null;
         this.dbStores = null;
+        this.dbAssignments = null;
+        this.dbUsers = null;
         this.isInitialized = false;
 
         console.log('[HybridSync] Servicio creado');
@@ -23,9 +25,11 @@ class HybridSyncService {
             console.log('[HybridSync] Inicializando PouchDB...');
             this.dbProducts = new PouchDB('products');
             this.dbStores = new PouchDB('stores');
+            this.dbAssignments = new PouchDB('assignments');
+            this.dbUsers = new PouchDB('users');
             this.isInitialized = true;
 
-            console.log('[HybridSync] ✅ PouchDB inicializado (productos y tiendas)');
+            console.log('[HybridSync] ✅ PouchDB inicializado (productos, tiendas, asignaciones y usuarios)');
 
             // Setup auto-sync cuando vuelva conexión
             this.setupAutoSync();
@@ -552,6 +556,181 @@ class HybridSyncService {
     }
 
     // ==========================================
+    // USERS (USUARIOS) - SOLO LECTURA
+    // ==========================================
+
+    /**
+     * Obtener todos los usuarios
+     * - Con internet: GET al backend + cachea en PouchDB
+     * - Sin internet: Lee de PouchDB
+     */
+    async getAllUsers() {
+        console.log('[HybridSync] 👥 Obteniendo usuarios...');
+        console.log('[HybridSync] Estado de conexión:', navigator.onLine ? '🟢 Online' : '🔴 Offline');
+
+        if (navigator.onLine) {
+            try {
+                console.log('[HybridSync] 🌐 Cargando usuarios desde BACKEND...');
+
+                // 1. GET al backend
+                const response = await fetch(`${BACKEND_URL}/users`, {
+                    method: 'GET',
+                    headers: this.getHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const responseData = await response.json();
+                const users = responseData.data; // Los usuarios están en .data
+                console.log(`[HybridSync] ✅ ${users.length} usuarios obtenidos del backend`);
+
+                // 2. Cachear en PouchDB para uso offline
+                await this.cacheUsersInPouchDB(users);
+
+                return users;
+
+            } catch (error) {
+                console.warn('[HybridSync] ⚠️ Error al cargar del backend, usando caché:', error.message);
+                // Si falla, cargar desde caché
+                return await this.loadUsersFromCache();
+            }
+        } else {
+            // Sin internet, cargar desde caché
+            console.log('[HybridSync] 📴 SIN INTERNET - Cargando desde caché...');
+            return await this.loadUsersFromCache();
+        }
+    }
+
+    /**
+     * Cachear usuarios del backend en PouchDB
+     */
+    async cacheUsersInPouchDB(users) {
+        try {
+            console.log('[HybridSync] 💾 Cacheando usuarios en PouchDB...');
+
+            for (const user of users) {
+                try {
+                    // Intentar obtener el documento existente
+                    const existingDoc = await this.dbUsers.get(user.uuid).catch(() => null);
+
+                    if (existingDoc) {
+                        // Actualizar documento existente
+                        await this.dbUsers.put({
+                            _id: user.uuid,
+                            _rev: existingDoc._rev,
+                            ...user,
+                            cachedAt: new Date().toISOString()
+                        });
+                    } else {
+                        // Crear nuevo documento
+                        await this.dbUsers.put({
+                            _id: user.uuid,
+                            ...user,
+                            cachedAt: new Date().toISOString()
+                        });
+                    }
+                } catch (error) {
+                    console.warn(`[HybridSync] ⚠️ Error cacheando usuario ${user.name}:`, error.message);
+                }
+            }
+
+            console.log('[HybridSync] ✅ Usuarios cacheados correctamente');
+        } catch (error) {
+            console.error('[HybridSync] ❌ Error al cachear usuarios:', error);
+        }
+    }
+
+    /**
+     * Cargar usuarios desde caché local (PouchDB)
+     */
+    async loadUsersFromCache() {
+        try {
+            console.log('[HybridSync] 📂 Cargando usuarios desde CACHÉ (PouchDB)...');
+
+            const result = await this.dbUsers.allDocs({
+                include_docs: true,
+                descending: true
+            });
+
+            const users = result.rows
+                .filter(row => !row.id.startsWith('_design/'))
+                .map(row => row.doc);
+
+            console.log(`[HybridSync] ✅ ${users.length} usuarios cargados desde caché`);
+            return users;
+
+        } catch (error) {
+            console.error('[HybridSync] ❌ Error al cargar desde caché:', error);
+            return [];
+        }
+    }
+
+    // ==========================================
+    // ASIGNACIONES (ROUTES)
+    // ==========================================
+
+    /**
+     * Asignar repartidor a tienda
+     * - Con internet: POST al backend
+     * - Sin internet: Guardar en PouchDB (assignments)
+     */
+    async assignDriver(userUuid, storeUuid) {
+        const assignmentData = { userUuid, storeUuid };
+        console.log('[HybridSync] 🔗 Asignando repartidor:', assignmentData);
+        console.log('[HybridSync] Estado de conexión:', navigator.onLine ? '🟢 Online' : '🔴 Offline');
+
+        if (navigator.onLine) {
+            try {
+                console.log('[HybridSync] 🌐 Enviando asignación al BACKEND...');
+                const response = await fetch(`${BACKEND_URL}/routes/assign`, {
+                    method: 'POST',
+                    headers: this.getHeaders(),
+                    body: JSON.stringify(assignmentData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const responseData = await response.json();
+                console.log('[HybridSync] ✅ Asignación exitosa en backend');
+                return { success: true, data: responseData };
+
+            } catch (error) {
+                console.warn('[HybridSync] ⚠️ Error al asignar en backend, guardando localmente:', error.message);
+                return await this.saveAssignmentOffline(assignmentData);
+            }
+        } else {
+            console.log('[HybridSync] 📴 SIN INTERNET - Guardando asignación localmente...');
+            return await this.saveAssignmentOffline(assignmentData);
+        }
+    }
+
+    /**
+     * Guardar asignación offline
+     */
+    async saveAssignmentOffline(data) {
+        try {
+            const tempId = `assign_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+            const doc = {
+                _id: tempId,
+                ...data,
+                syncPending: true,
+                syncOperation: 'assign',
+                syncTimestamp: Date.now()
+            };
+            await this.dbAssignments.put(doc);
+            console.log('[HybridSync] ✅ Asignación guardada OFFLINE');
+            return { success: true, offline: true };
+        } catch (error) {
+            console.error('[HybridSync] ❌ Error al guardar asignación offline:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================
     // AUTO-SYNC
     // ==========================================
 
@@ -691,6 +870,37 @@ class HybridSyncService {
                     }
                 }
 
+                // ====== SINCRONIZAR ASIGNACIONES ======
+                const assignmentsResult = await this.dbAssignments.allDocs({ include_docs: true });
+                const pendingAssignments = assignmentsResult.rows
+                    .map(row => row.doc)
+                    .filter(doc => doc.syncPending === true);
+
+                console.log(`[HybridSync] 🔗 ${pendingAssignments.length} asignaciones pendientes`);
+
+                for (const doc of pendingAssignments) {
+                    try {
+                        console.log(`[HybridSync] 🔄 Sincronizando asignación...`);
+                        const response = await fetch(`${BACKEND_URL}/routes/assign`, {
+                            method: 'POST',
+                            headers: this.getHeaders(),
+                            body: JSON.stringify({
+                                userUuid: doc.userUuid,
+                                storeUuid: doc.storeUuid
+                            })
+                        });
+
+                        if (response.ok) {
+                            console.log(`[HybridSync] ✅ Asignación sincronizada`);
+                            await this.dbAssignments.remove(doc);
+                        } else {
+                            console.error(`[HybridSync] ❌ Error sincronizando asignación: HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error(`[HybridSync] ❌ Error sincronizando asignación:`, error.message);
+                    }
+                }
+
                 console.log('[HybridSync] ✅ Auto-sincronización completada');
 
                 // LIMPIAR Y REFRESCAR CACHÉ desde el backend
@@ -796,7 +1006,9 @@ class HybridSyncService {
         try {
             await this.dbProducts.destroy();
             await this.dbStores.destroy();
-            console.log('[HybridSync] 🗑️ Bases de datos limpiadas (productos y tiendas)');
+            await this.dbAssignments.destroy();
+            await this.dbUsers.destroy();
+            console.log('[HybridSync] 🗑️ Bases de datos limpiadas (productos, tiendas, asignaciones y usuarios)');
             // Reinicializar
             await this.initialize();
         } catch (error) {

@@ -197,8 +197,14 @@ public class VisitService {
         String cleanStoreName = sanitizeName(storeName);
         String cleanUserName = sanitizeName(userName);
 
+        String originalFilename = photo.getOriginalFilename();
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf('.'));
+        }
+
         String filename = "store_" + cleanStoreName + "_" + cleanUserName + "_" + System.currentTimeMillis() + "_"
-                + photo.getOriginalFilename();
+                + UUID.randomUUID() + extension;
         Path filePath = uploadPath.resolve(filename);
         photo.transferTo(filePath.toFile());
 

@@ -87,6 +87,7 @@ async function loadProductsTable() {
 
         // GET productos (desde backend si hay internet, o desde caché)
         products = await syncService.getAllProducts();
+        window.products = products; // Actualizar referencia global
 
         console.log(`[Products] ✅ ${products.length} productos obtenidos`);
         renderProductsTable();
@@ -175,14 +176,20 @@ function openAddProductModal() {
  */
 async function editProduct(productId) {
     console.log('[Products] ✏️ Editando producto:', productId);
+    console.log('[Products] 📊 Total productos en array:', products.length);
+    console.log('[Products] 📋 IDs disponibles:', products.map(p => p._id));
 
     // Buscar el producto en la lista
     const product = products.find(p => p._id === productId);
 
     if (!product) {
+        console.error('[Products] ❌ Producto no encontrado. Buscando:', productId);
+        console.error('[Products] 📦 Productos disponibles:', products);
         showToast('Producto no encontrado', 'error');
         return;
     }
+
+    console.log('[Products] ✅ Producto encontrado:', product);
 
     // Cargar datos en el formulario
     currentProductId = productId;
@@ -349,9 +356,10 @@ function deleteProduct(id) {
     showToast('Eliminar producto aún no implementado', 'info');
 }
 
-// Hacer funciones accesibles globalmente
+// Hacer funciones y variables accesibles globalmente
 window.loadProductsTable = loadProductsTable;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
+window.products = products; // Para debugging
 
 console.log('[Products] 📦 Módulo de productos cargado (GET, POST, PUT)');

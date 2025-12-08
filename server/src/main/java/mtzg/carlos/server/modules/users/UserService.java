@@ -117,6 +117,7 @@ public class UserService {
         }
     }
 
+    @Transactional
     public ResponseEntity<Object> register(UserRegisterDto request) {
         Optional<UserModel> existingUser = userRepository.findByEmail(request.getEmail());
         if (existingUser.isPresent()) {
@@ -134,4 +135,30 @@ public class UserService {
         return Utilities.authResponse(HttpStatus.OK, "User registered successfully", jwtToken);
     }
 
+    @Transactional
+    public ResponseEntity<Object> deleteUser(UUID userUuid) {
+        try {
+            Optional<UserModel> userOpt = userRepository.findByUuid(userUuid);
+            if (userOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "User not found");
+            }
+            UserModel user = userOpt.get();
+
+            if (user.getStores() != null && !user.getStores().isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.BAD_REQUEST,
+                        "Cannot delete user associated with stores");
+            }
+
+            if (user.getVisits() != null && !user.getVisits().isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.BAD_REQUEST,
+                        "Cannot delete user associated with visits");
+            }
+
+            userRepository.delete(user);
+            return Utilities.simpleResponse(HttpStatus.OK, "User deleted successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while deleting the user: " + e.getMessage());
+        }
+    }
 }

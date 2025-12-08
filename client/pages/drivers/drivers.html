@@ -6,6 +6,20 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Gestión de Repartidores - Sistema de Abarrotes</title>
 
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Panel de administración para repartidores con soporte offline">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="../../manifest.json">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="../../assets/images/icon-192x192.png">
+    <link rel="apple-touch-icon" href="../../assets/images/icon-192x192.png">
+
     <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -52,51 +66,6 @@
             background: #343a40;
             color: white;
         }
-
-        /* Responsive para móviles */
-        @media (max-width: 576px) {
-            .content-container {
-                padding: 0.5rem;
-            }
-            .header-section {
-                flex-direction: column;
-                align-items: stretch;
-                padding: 1rem;
-            }
-            .page-title {
-                font-size: 1.5rem;
-                text-align: center;
-                margin-bottom: 0.5rem;
-            }
-            .btn-add {
-                width: 100%;
-                justify-content: center;
-                display: flex;
-                align-items: center;
-            }
-            .table-container {
-                padding: 0.5rem;
-            }
-            .table {
-                font-size: 0.75rem;
-            }
-            .table th {
-                padding: 0.4rem 0.25rem;
-                font-size: 0.7rem;
-            }
-            .table td {
-                padding: 0.4rem 0.25rem;
-                font-size: 0.75rem;
-            }
-            .btn-action {
-                padding: 0.2rem 0.3rem;
-                font-size: 0.75rem;
-                margin-bottom: 0.25rem;
-            }
-            .btn-action:last-child {
-                margin-bottom: 0;
-            }
-        }
         .table-container {
             background: white;
             border: 1px solid #e0e0e0;
@@ -120,6 +89,17 @@
             vertical-align: middle;
             padding: 0.75rem;
             color: #212529;
+        }
+        .store-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        .store-pill {
+            background: #e9ecef;
+            border-radius: 999px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.75rem;
         }
         .btn-action {
             padding: 0.25rem 0.5rem;
@@ -170,25 +150,55 @@
             padding: 3rem 1rem;
             color: #6c757d;
         }
-        .status-badge {
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 500;
+        .password-hint {
+            font-size: 0.8rem;
+            color: #6c757d;
         }
-        .status-active {
-            background: #d4edda;
-            color: #155724;
-        }
-        .status-inactive {
-            background: #f8d7da;
-            color: #721c24;
+
+        /* Responsive para móviles */
+        @media (max-width: 576px) {
+            .content-container {
+                padding: 0.5rem;
+            }
+            .header-section {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 1rem;
+            }
+            .page-title {
+                font-size: 1.5rem;
+                text-align: center;
+                margin-bottom: 0.5rem;
+            }
+            .btn-add {
+                width: 100%;
+                justify-content: center;
+                display: flex;
+                align-items: center;
+            }
+            .table-container {
+                padding: 0.5rem;
+            }
+            .table {
+                font-size: 0.8rem;
+            }
+            .table th,
+            .table td {
+                padding: 0.4rem 0.25rem;
+            }
+            .btn-action {
+                padding: 0.2rem 0.35rem;
+                font-size: 0.75rem;
+                margin-bottom: 0.25rem;
+            }
+            .btn-action:last-child {
+                margin-bottom: 0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="content-container">
-        <!-- Header Section -->
         <div class="header-section">
             <h1 class="page-title">Gestión de Repartidores</h1>
             <button class="btn btn-add" id="btnAddDriver" data-bs-toggle="modal" data-bs-target="#driverModal">
@@ -196,24 +206,21 @@
             </button>
         </div>
 
-        <!-- Table Container -->
         <div class="table-container">
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th style="width: 8%">ID</th>
-                            <th style="width: 20%">Nombre</th>
-                            <th style="width: 20%">Teléfono</th>
-                            <th style="width: 22%">Licencia</th>
-                            <th style="width: 12%">Estado</th>
-                            <th style="width: 18%" class="text-center">Acciones</th>
+                            <th style="width: 15%">ID</th>
+                            <th style="width: 25%">Nombre</th>
+                            <th style="width: 25%">Correo</th>
+                            <th style="width: 20%">Tiendas Asignadas</th>
+                            <th style="width: 15%" class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="driversTableBody">
-                        <!-- Los repartidores se cargarán dinámicamente aquí -->
                         <tr>
-                            <td colspan="6" class="empty-state">
+                            <td colspan="5" class="empty-state">
                                 <i class="bi bi-truck" style="font-size: 3rem;"></i>
                                 <p class="mt-2">Cargando repartidores...</p>
                             </td>
@@ -235,7 +242,6 @@
                 <div class="modal-body">
                     <form id="driverForm">
                         <input type="hidden" id="driverId">
-
                         <div class="mb-3">
                             <label for="driverName" class="form-label">Nombre Completo</label>
                             <input
@@ -247,42 +253,42 @@
                                 required
                             >
                         </div>
-
                         <div class="mb-3">
-                            <label for="driverPhone" class="form-label">Teléfono</label>
+                            <label for="driverEmail" class="form-label">Correo electrónico</label>
                             <input
-                                type="tel"
+                                type="email"
                                 class="form-control"
-                                id="driverPhone"
-                                name="phone"
-                                placeholder="Ej: 55 1234 5678"
+                                id="driverEmail"
+                                name="email"
+                                placeholder="correo@ejemplo.com"
                                 required
                             >
                         </div>
-
-                        <div class="mb-3">
-                            <label for="driverLicense" class="form-label">Número de Licencia</label>
+                        <div class="mb-3" id="passwordGroup">
+                            <label for="driverPassword" class="form-label">Contraseña</label>
                             <input
-                                type="text"
+                                type="password"
                                 class="form-control"
-                                id="driverLicense"
-                                name="license"
-                                placeholder="Ingresa el número de licencia"
+                                id="driverPassword"
+                                name="password"
+                                placeholder="********"
+                                minlength="8"
                                 required
                             >
+                            <div class="password-hint">
+                                Debe incluir mayúsculas, minúsculas, número y caracter especial.
+                            </div>
                         </div>
-
-                        <div class="mb-3">
-                            <label for="driverStatus" class="form-label">Estado</label>
-                            <select
-                                class="form-select"
-                                id="driverStatus"
-                                name="status"
+                        <div class="mb-3" id="passwordConfirmGroup">
+                            <label for="driverPasswordConfirm" class="form-label">Confirmar Contraseña</label>
+                            <input
+                                type="password"
+                                class="form-control"
+                                id="driverPasswordConfirm"
+                                placeholder="********"
+                                minlength="8"
                                 required
                             >
-                                <option value="active">Activo</option>
-                                <option value="inactive">Inactivo</option>
-                            </select>
                         </div>
                     </form>
                 </div>
@@ -314,10 +320,26 @@
         </div>
     </div>
 
+    <!-- Network Status Indicator -->
+    <div id="network-status"></div>
+
     <!-- Bootstrap 5 JS Bundle CDN (incluye Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- PouchDB Library (Offline-First Database) -->
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.find.min.js"></script>
+
+    <!-- Properties (BASE_URL) -->
+    <script src="../../properties.js"></script>
+
+    <!-- Hybrid Sync Service -->
+    <script src="../../services/sync-pouchdb-service.js"></script>
+
+    <!-- PWA Initialization -->
+    <script type="module" src="../../pwa-init.js"></script>
+
     <!-- Drivers JS -->
-    <script src="drivers.js"></script>
+    <script type="module" src="drivers.js"></script>
 </body>
 </html>

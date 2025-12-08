@@ -125,7 +125,45 @@ public class VisitService {
                 return Utilities.simpleResponse(HttpStatus.FORBIDDEN, "User does not have access to this store");
             }
 
-            String photoPath = saveVisitPhoto(userOpt.get().getName(), store.getName(), photo, "uploads");
+            ObjectMapper mapper = new ObjectMapper();
+            List<OrderRegisterDto> orderDtos = mapper.readValue(ordersJson,
+                    new TypeReference<List<OrderRegisterDto>>() {
+                    });
+
+            List<UUID> notAssignedProducts = new java.util.ArrayList<>();
+            List<OrderModel> orders = new java.util.ArrayList<>();
+            if (orderDtos != null && !orderDtos.isEmpty()) {
+                for (OrderRegisterDto orderDto : orderDtos) {
+                    Optional<ProductModel> productOpt = productRepository.findByUuid(orderDto.getProductUuid());
+                    if (productOpt.isEmpty()) {
+                        continue;
+                    }
+                    ProductModel product = productOpt.get();
+                    boolean assigned = store.getProducts() != null &&
+                            store.getProducts().stream().anyMatch(p -> p.getUuid().equals(product.getUuid()));
+                    if (!assigned) {
+                        notAssignedProducts.add(product.getUuid());
+                        continue;
+                    }
+                    orders.add(OrderModel.builder()
+                            .uuid(UUID.randomUUID())
+                            .quantity(orderDto.getQuantity())
+                            .unitPrice(product.getBasePrice())
+                            .total(orderDto.getQuantity() * product.getBasePrice())
+                            .product(product)
+                            .visit(null)
+                            .build());
+                }
+                if (!notAssignedProducts.isEmpty()) {
+                    return Utilities.simpleResponse(HttpStatus.BAD_REQUEST,
+                            "The following products are not assigned to this store: " + notAssignedProducts);
+                }
+            }
+
+            String photoPath = null;
+            if (photo != null && !photo.isEmpty()) {
+                photoPath = saveVisitPhoto(userOpt.get().getName(), store.getName(), photo, "uploads");
+            }
 
             VisitModel visit = VisitModel.builder()
                     .uuid(UUID.randomUUID())
@@ -136,41 +174,8 @@ public class VisitService {
                     .store(store)
                     .build();
 
-            ObjectMapper mapper = new ObjectMapper();
-            List<OrderRegisterDto> orderDtos = mapper.readValue(ordersJson,
-                    new TypeReference<List<OrderRegisterDto>>() {
-                    });
-
-            List<UUID> notAssignedProducts = new java.util.ArrayList<>();
-            if (orderDtos != null && !orderDtos.isEmpty()) {
-                List<OrderModel> orders = orderDtos.stream()
-                        .map(orderDto -> {
-                            Optional<ProductModel> productOpt = productRepository.findByUuid(orderDto.getProductUuid());
-                            if (productOpt.isEmpty()) {
-                                return null;
-                            }
-                            ProductModel product = productOpt.get();
-                            boolean assigned = store.getProducts() != null &&
-                                    store.getProducts().stream().anyMatch(p -> p.getUuid().equals(product.getUuid()));
-                            if (!assigned) {
-                                notAssignedProducts.add(product.getUuid());
-                                return null;
-                            }
-                            return OrderModel.builder()
-                                    .uuid(UUID.randomUUID())
-                                    .quantity(orderDto.getQuantity())
-                                    .unitPrice(product.getBasePrice())
-                                    .total(orderDto.getQuantity() * product.getBasePrice())
-                                    .product(product)
-                                    .visit(visit)
-                                    .build();
-                        })
-                        .filter(order -> order != null)
-                        .toList();
-                if (!notAssignedProducts.isEmpty()) {
-                    return Utilities.simpleResponse(HttpStatus.BAD_REQUEST,
-                            "The following products are not assigned to this store: " + notAssignedProducts);
-                }
+            if (!orders.isEmpty()) {
+                orders.forEach(order -> order.setVisit(visit));
                 visit.setOrders(new HashSet<>(orders));
             }
 

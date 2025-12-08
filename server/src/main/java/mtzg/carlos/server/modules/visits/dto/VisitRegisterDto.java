@@ -32,4 +32,9 @@ public class VisitRegisterDto {
 
     @NotNull(message = "Orders cannot be null")
     private List<OrderRegisterDto> orders;
+
+    public void setPhoto(String photo) {
+        this.photo = photo != null ? photo.trim() : null;
+    }
+
 }

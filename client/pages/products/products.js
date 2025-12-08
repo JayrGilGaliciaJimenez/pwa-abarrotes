@@ -1,6 +1,6 @@
 /**
- * Products Page JavaScript - SIMPLIFICADO
- * SOLO GET y POST de productos
+ * Products Page JavaScript
+ * Operaciones: GET, POST, PUT (CREATE, UPDATE)
  */
 
 // Variables globales
@@ -344,11 +344,7 @@ function showToast(message, type = 'info') {
     });
 }
 
-// Funciones placeholders para editar/eliminar (NO IMPLEMENTADAS AÚN)
-function editProduct(id) {
-    showToast('Editar producto aún no implementado', 'info');
-}
-
+// Función placeholder para eliminar (NO IMPLEMENTADA AÚN)
 function deleteProduct(id) {
     showToast('Eliminar producto aún no implementado', 'info');
 }
@@ -358,4 +354,4 @@ window.loadProductsTable = loadProductsTable;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 
-console.log('[Products] 📦 Módulo de productos cargado (SIMPLIFICADO - Solo GET y POST)');
+console.log('[Products] 📦 Módulo de productos cargado (GET, POST, PUT)');

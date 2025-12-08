@@ -146,7 +146,7 @@ function renderProductsTable() {
                 <td>${escapeHtml(product.description)}</td>
                 <td>$${parseFloat(product.basePrice).toFixed(2)}</td>
                 <td class="text-center">
-                    <button class="btn btn-action btn-edit" onclick="editProduct('${productId}')" title="Editar" disabled>
+                    <button class="btn btn-action btn-edit" onclick="editProduct('${productId}')" title="Editar">
                         <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-action btn-delete" onclick="deleteProduct('${productId}')" title="Eliminar" disabled>
@@ -171,7 +171,32 @@ function openAddProductModal() {
 }
 
 /**
- * Guardar producto (SOLO POST - crear nuevo)
+ * Editar producto existente
+ */
+async function editProduct(productId) {
+    console.log('[Products] ✏️ Editando producto:', productId);
+
+    // Buscar el producto en la lista
+    const product = products.find(p => p._id === productId);
+
+    if (!product) {
+        showToast('Producto no encontrado', 'error');
+        return;
+    }
+
+    // Cargar datos en el formulario
+    currentProductId = productId;
+    document.getElementById('productModalLabel').textContent = 'Editar Producto';
+    document.getElementById('productName').value = product.name || '';
+    document.getElementById('productDescription').value = product.description || '';
+    document.getElementById('productPrice').value = product.basePrice || '';
+
+    // Mostrar modal
+    productModal.show();
+}
+
+/**
+ * Guardar producto (CREATE o UPDATE)
  */
 async function saveProduct() {
     const form = document.getElementById('productForm');
@@ -201,18 +226,42 @@ async function saveProduct() {
     btnSave.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Guardando...';
 
     try {
-        console.log('[Products] ➕ Guardando producto:', productData);
+        let result;
 
-        // POST al backend (o guardar offline si no hay conexión)
-        const result = await syncService.createProduct(productData);
+        if (currentProductId) {
+            // EDITAR producto existente (PUT)
+            console.log('[Products] ✏️ Actualizando producto:', currentProductId, productData);
 
-        if (result.success) {
-            if (result.offline) {
-                showToast('⚠️ Producto guardado localmente (se sincronizará cuando haya conexión)', 'warning');
-            } else {
-                showToast('✅ Producto guardado exitosamente', 'success');
+            // Obtener el uuid real del producto
+            const product = products.find(p => p._id === currentProductId);
+            const productUuid = product.uuid || currentProductId;
+
+            result = await syncService.updateProduct(productUuid, productData);
+
+            if (result.success) {
+                if (result.offline) {
+                    showToast('⚠️ Producto actualizado localmente (se sincronizará cuando haya conexión)', 'warning');
+                } else {
+                    showToast('✅ Producto actualizado exitosamente', 'success');
+                }
             }
 
+        } else {
+            // CREAR nuevo producto (POST)
+            console.log('[Products] ➕ Creando producto:', productData);
+
+            result = await syncService.createProduct(productData);
+
+            if (result.success) {
+                if (result.offline) {
+                    showToast('⚠️ Producto guardado localmente (se sincronizará cuando haya conexión)', 'warning');
+                } else {
+                    showToast('✅ Producto guardado exitosamente', 'success');
+                }
+            }
+        }
+
+        if (result.success) {
             // Recargar tabla
             await loadProductsTable();
 

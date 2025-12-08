@@ -260,6 +260,103 @@ class HybridSyncService {
     }
 
     // ==========================================
+    // PUT PRODUCTS (ACTUALIZAR)
+    // ==========================================
+
+    /**
+     * Actualizar producto existente
+     * - Con internet: PUT al backend inmediatamente
+     * - Sin internet: Actualizar en PouchDB con flag pendiente
+     */
+    async updateProduct(productUuid, productData) {
+        console.log('[HybridSync] ✏️ Actualizando producto:', productUuid, productData);
+        console.log('[HybridSync] Estado de conexión:', navigator.onLine ? '🟢 Online' : '🔴 Offline');
+
+        if (navigator.onLine) {
+            try {
+                console.log('[HybridSync] 🌐 Enviando actualización al BACKEND...');
+
+                // 1. PUT al backend
+                const response = await fetch(`${BACKEND_URL}/products/${productUuid}`, {
+                    method: 'PUT',
+                    headers: this.getHeaders(),
+                    body: JSON.stringify(productData)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const responseData = await response.json();
+                const updatedProduct = responseData.data;
+                console.log('[HybridSync] ✅ Producto actualizado en backend:', updatedProduct.uuid);
+
+                // 2. Actualizar en PouchDB con datos del backend
+                try {
+                    const existingDoc = await this.dbProducts.get(productUuid);
+                    await this.dbProducts.put({
+                        _id: updatedProduct.uuid,
+                        _rev: existingDoc._rev,
+                        ...updatedProduct,
+                        cachedAt: new Date().toISOString()
+                    });
+                    console.log('[HybridSync] ✅ Producto actualizado en caché');
+                } catch (error) {
+                    console.warn('[HybridSync] ⚠️ No se pudo actualizar en caché:', error.message);
+                }
+
+                return { success: true, product: updatedProduct };
+
+            } catch (error) {
+                console.warn('[HybridSync] ⚠️ Error al actualizar en backend, guardando localmente:', error.message);
+                // Si falla, actualizar localmente con flag pendiente
+                return await this.updateProductOffline(productUuid, productData);
+            }
+        } else {
+            // Sin internet, actualizar localmente
+            console.log('[HybridSync] 📴 SIN INTERNET - Actualizando localmente...');
+            return await this.updateProductOffline(productUuid, productData);
+        }
+    }
+
+    /**
+     * Actualizar producto offline (pendiente de sincronización)
+     */
+    async updateProductOffline(productUuid, productData) {
+        try {
+            // Intentar obtener el documento existente
+            let existingDoc;
+            try {
+                existingDoc = await this.dbProducts.get(productUuid);
+            } catch (error) {
+                console.warn('[HybridSync] ⚠️ Producto no encontrado en caché, creando nuevo documento');
+                existingDoc = { _id: productUuid };
+            }
+
+            const doc = {
+                _id: productUuid,
+                _rev: existingDoc._rev,
+                ...productData,
+                uuid: productUuid,
+                syncPending: true,
+                syncOperation: 'update',
+                productUuid: productUuid, // Para saber qué producto actualizar
+                syncTimestamp: Date.now(),
+                updatedAt: new Date().toISOString()
+            };
+
+            await this.dbProducts.put(doc);
+            console.log('[HybridSync] ✅ Producto actualizado OFFLINE (pendiente de sincronización)');
+
+            return { success: true, product: doc, offline: true };
+
+        } catch (error) {
+            console.error('[HybridSync] ❌ Error al actualizar offline:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================
     // STORES (TIENDAS) - CRUD HÍBRIDO
     // ==========================================
 
@@ -474,10 +571,17 @@ class HybridSyncService {
 
                 console.log(`[HybridSync] 📦 ${pendingProducts.length} productos pendientes de sincronización`);
 
-                // Sincronizar cada producto
-                for (const doc of pendingProducts) {
+                // Separar por operación: create vs update
+                const productsToCreate = pendingProducts.filter(doc => doc.syncOperation === 'create');
+                const productsToUpdate = pendingProducts.filter(doc => doc.syncOperation === 'update');
+
+                console.log(`[HybridSync] ➕ ${productsToCreate.length} productos para crear`);
+                console.log(`[HybridSync] ✏️ ${productsToUpdate.length} productos para actualizar`);
+
+                // Sincronizar CREAR productos (POST)
+                for (const doc of productsToCreate) {
                     try {
-                        console.log(`[HybridSync] 🔄 Sincronizando producto: ${doc.name}...`);
+                        console.log(`[HybridSync] 🔄 Creando producto: ${doc.name}...`);
 
                         const response = await fetch(`${BACKEND_URL}/products`, {
                             method: 'POST',
@@ -492,7 +596,7 @@ class HybridSyncService {
                         if (response.ok) {
                             const responseData = await response.json();
                             const savedProduct = responseData.data;
-                            console.log(`[HybridSync] ✅ Producto sincronizado: ${doc.name} → ${savedProduct.uuid}`);
+                            console.log(`[HybridSync] ✅ Producto creado: ${doc.name} → ${savedProduct.uuid}`);
 
                             await this.dbProducts.remove(doc);
                             await this.dbProducts.put({
@@ -501,10 +605,46 @@ class HybridSyncService {
                                 cachedAt: new Date().toISOString()
                             });
                         } else {
-                            console.error(`[HybridSync] ❌ Error sincronizando producto ${doc.name}: HTTP ${response.status}`);
+                            console.error(`[HybridSync] ❌ Error creando producto ${doc.name}: HTTP ${response.status}`);
                         }
                     } catch (error) {
-                        console.error(`[HybridSync] ❌ Error sincronizando producto ${doc.name}:`, error.message);
+                        console.error(`[HybridSync] ❌ Error creando producto ${doc.name}:`, error.message);
+                    }
+                }
+
+                // Sincronizar ACTUALIZAR productos (PUT)
+                for (const doc of productsToUpdate) {
+                    try {
+                        const productUuid = doc.productUuid || doc.uuid || doc._id;
+                        console.log(`[HybridSync] 🔄 Actualizando producto: ${doc.name} (${productUuid})...`);
+
+                        const response = await fetch(`${BACKEND_URL}/products/${productUuid}`, {
+                            method: 'PUT',
+                            headers: this.getHeaders(),
+                            body: JSON.stringify({
+                                name: doc.name,
+                                description: doc.description,
+                                basePrice: doc.basePrice
+                            })
+                        });
+
+                        if (response.ok) {
+                            const responseData = await response.json();
+                            const updatedProduct = responseData.data;
+                            console.log(`[HybridSync] ✅ Producto actualizado: ${doc.name} → ${updatedProduct.uuid}`);
+
+                            // Actualizar en PouchDB quitando flags de sincronización
+                            await this.dbProducts.put({
+                                _id: updatedProduct.uuid,
+                                _rev: doc._rev,
+                                ...updatedProduct,
+                                cachedAt: new Date().toISOString()
+                            });
+                        } else {
+                            console.error(`[HybridSync] ❌ Error actualizando producto ${doc.name}: HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error(`[HybridSync] ❌ Error actualizando producto ${doc.name}:`, error.message);
                     }
                 }
 

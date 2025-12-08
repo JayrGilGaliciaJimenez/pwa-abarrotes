@@ -15,6 +15,7 @@ import mtzg.carlos.server.modules.jwt.JwtService;
 import mtzg.carlos.server.modules.stores.dto.StoreResponseDto;
 import mtzg.carlos.server.modules.users.dto.UserRegisterDto;
 import mtzg.carlos.server.modules.users.dto.UserResponseDto;
+import mtzg.carlos.server.modules.users.dto.UserUpdateDto;
 import mtzg.carlos.server.utils.Utilities;
 
 @Service
@@ -155,6 +156,30 @@ public class UserService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while deleting the user: " + e.getMessage());
+        }
+    }
+
+    @Transactional
+    public ResponseEntity<Object> updateUser(UUID userUuid, UserUpdateDto dto) {
+        try {
+            Optional<UserModel> userOpt = userRepository.findByUuid(userUuid);
+            if (userOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "User not found");
+            }
+            UserModel user = userOpt.get();
+
+            if (dto.getName() != null && !dto.getName().isBlank()) {
+                user.setName(dto.getName());
+            }
+
+            if (dto.getRole() != null) {
+                user.setRole(dto.getRole());
+            }
+            userRepository.save(user);
+            return Utilities.simpleResponse(HttpStatus.OK, "User updated successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while updating the user: " + e.getMessage());
         }
     }
 }

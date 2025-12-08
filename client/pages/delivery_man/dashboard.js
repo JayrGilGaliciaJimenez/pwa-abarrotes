@@ -9,6 +9,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const deliveryManNameElement = document.getElementById('deliveryManName');
     const logoutBtn = document.getElementById('logoutBtn');
     const messageArea = document.getElementById('messageArea');
+    const scanQrBtn = document.getElementById('scanQrBtn');
+    const qrScannerModal = document.getElementById('qrScannerModal');
+
+    let html5QrCode = null;
 
     // Simulación de datos del repartidor (en producción vendrá de localStorage o API)
     const deliveryMan = {
@@ -43,6 +47,180 @@ document.addEventListener('DOMContentLoaded', function() {
             address: 'Calle Hidalgo #321'
         }
     ];
+
+    /**
+     * Inicia el escáner de código QR
+     */
+    function startQrScanner() {
+        const qrReaderElement = document.getElementById('qr-reader');
+        const qrResultsElement = document.getElementById('qr-reader-results');
+
+        // Limpiar resultados anteriores
+        qrResultsElement.innerHTML = '';
+
+        html5QrCode = new Html5Qrcode('qr-reader');
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0
+        };
+
+        html5QrCode.start(
+            { facingMode: 'environment' }, // Cámara trasera
+            config,
+            onQrCodeSuccess,
+            onQrCodeError
+        ).catch(function(err) {
+            console.error('Error al iniciar el escáner:', err);
+            qrResultsElement.innerHTML = `
+                <div class="alert alert-danger">
+                    Error al acceder a la cámara. Asegúrate de dar permisos.
+                </div>
+            `;
+        });
+    }
+
+    /**
+     * Detiene el escáner de código QR
+     */
+    function stopQrScanner() {
+        if (html5QrCode && html5QrCode.isScanning) {
+            html5QrCode.stop().then(function() {
+                console.log('Escáner detenido');
+            }).catch(function(err) {
+                console.error('Error al detener el escáner:', err);
+            });
+        }
+    }
+
+    /**
+     * Callback cuando se escanea un código QR exitosamente
+     * @param {string} decodedText - Texto decodificado del QR
+     * @param {object} decodedResult - Resultado completo del escaneo
+     */
+    function onQrCodeSuccess(decodedText, decodedResult) {
+        const qrResultsElement = document.getElementById('qr-reader-results');
+
+        // Detener el escáner después de leer
+        stopQrScanner();
+
+        // Mostrar el resultado
+        qrResultsElement.innerHTML = `
+            <div class="alert alert-success">
+                <strong>Código escaneado:</strong><br>
+                ${decodedText}
+            </div>
+        `;
+
+        // Aquí puedes procesar el código QR según tu lógica de negocio
+        console.log('QR Code escaneado:', decodedText);
+
+        // Ejemplo: Si el QR contiene un ID de tienda, podrías procesarlo
+        handleQrResult(decodedText);
+    }
+
+    /**
+     * Callback para errores de escaneo (se llama constantemente mientras no detecta QR)
+     * @param {string} errorMessage - Mensaje de error
+     */
+    function onQrCodeError(errorMessage) {
+        // No mostrar errores continuos, solo loguear si es necesario
+        // console.log('Error de escaneo:', errorMessage);
+    }
+
+    /**
+     * Procesa el resultado del código QR escaneado
+     * @param {string} qrData - Datos del código QR (URL del endpoint de la tienda)
+     */
+    async function handleQrResult(qrData) {
+        const qrResultsElement = document.getElementById('qr-reader-results');
+
+        // Validar que sea una URL válida de tienda
+        if (!qrData.includes('/api/v1/stores/')) {
+            qrResultsElement.innerHTML = `
+                <div class="alert alert-warning">
+                    Código QR no válido. Escanea el QR de una tienda.
+                </div>
+            `;
+            return;
+        }
+
+        // Mostrar estado de carga
+        qrResultsElement.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+                <p class="mt-2">Buscando tienda...</p>
+            </div>
+        `;
+
+        try {
+            const token = localStorage.getItem('token'); // <-- obtiene el token
+            
+            const response = await fetch(qrData, {
+                headers: {
+                    'Authorization': `Bearer ${token}`, // <-- agrega token
+                    'Content-Type': 'application/json'
+                }
+            });
+            const result = await response.json();
+
+            if (response.ok && result.data) {
+                // Guardar datos de la tienda en sessionStorage para la siguiente página
+                sessionStorage.setItem('currentStore', JSON.stringify(result.data));
+
+                qrResultsElement.innerHTML = `
+                    <div class="alert alert-success">
+                        <strong>Tienda encontrada:</strong> ${result.data.name}<br>
+                        Redirigiendo...
+                    </div>
+                `;
+
+                // Cerrar modal y redirigir
+                setTimeout(function() {
+                    const modal = bootstrap.Modal.getInstance(qrScannerModal);
+                    if (modal) {
+                        modal.hide();
+                    }
+                    window.location.href = './store-visit.html';
+                }, 1500);
+            } else {
+                qrResultsElement.innerHTML = `
+                    <div class="alert alert-danger">
+                        No se encontró la tienda. Intenta de nuevo.
+                    </div>
+                `;
+            }
+        } catch (error) {
+    console.error('Error al buscar tienda:', error);
+
+    qrResultsElement.innerHTML = `
+        <div class="alert alert-danger">
+            <p>Error de conexión. Verifica tu internet e intenta de nuevo.</p>
+            <pre>${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
+        </div>
+    `;
+}
+
+    }
+
+    // Evento para abrir el modal y comenzar a escanear
+    scanQrBtn.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(qrScannerModal);
+        modal.show();
+    });
+
+    // Iniciar escáner cuando el modal se abre completamente
+    qrScannerModal.addEventListener('shown.bs.modal', function() {
+        startQrScanner();
+    });
+
+    // Detener escáner cuando el modal se cierra
+    qrScannerModal.addEventListener('hidden.bs.modal', function() {
+        stopQrScanner();
+    });
 
     /**
      * Inicializa el dashboard

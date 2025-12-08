@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Visita a Tienda - Repartidor</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Detalle de visita a tienda">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Abarrotes">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/assets/images/icon-192x192.png">
+
+    <!-- Bootstrap CSS -->
+    <link href="../../assets/bootstrap/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="./store-visit.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <a href="./dashboard.html" class="btn btn-back">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+                </svg>
+                Volver
+            </a>
+            <span class="navbar-brand mb-0">Visita a Tienda</span>
+            <div style="width: 80px;"></div>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <!-- Estado de carga -->
+        <div id="loadingState" class="text-center py-5">
+            <div class="spinner-border text-secondary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando datos de la tienda...</p>
+        </div>
+
+        <!-- Estado de error -->
+        <div id="errorState" class="text-center py-5 d-none">
+            <div class="error-icon mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="#dc3545" viewBox="0 0 16 16">
+                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                    <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/>
+                </svg>
+            </div>
+            <h5 class="text-muted">No se encontraron datos de la tienda</h5>
+            <p class="text-muted">Escanea un código QR válido</p>
+            <a href="./dashboard.html" class="btn btn-primary mt-2">Volver al Dashboard</a>
+        </div>
+
+        <!-- Contenido principal -->
+        <div id="storeContent" class="d-none">
+            <!-- Información de la tienda -->
+            <div class="card store-info-card mb-4">
+                <div class="card-body">
+                    <div class="store-header">
+                        <div class="store-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M2.97 1.35A1 1 0 0 1 3.73 1h8.54a1 1 0 0 1 .76.35l2.609 3.044A1.5 1.5 0 0 1 16 5.37v.255a2.375 2.375 0 0 1-4.25 1.458A2.371 2.371 0 0 1 9.875 8 2.37 2.37 0 0 1 8 7.083 2.37 2.37 0 0 1 6.125 8a2.37 2.37 0 0 1-1.875-.917A2.375 2.375 0 0 1 0 5.625V5.37a1.5 1.5 0 0 1 .361-.976l2.61-3.045zm1.78 4.275a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0 1.375 1.375 0 1 0 2.75 0V5.37a.5.5 0 0 0-.12-.325L12.27 2H3.73L1.12 5.045A.5.5 0 0 0 1 5.37v.255a1.375 1.375 0 0 0 2.75 0 .5.5 0 0 1 1 0zM1.5 8.5A.5.5 0 0 1 2 9v6h1v-5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v5h6V9a.5.5 0 0 1 1 0v6h.5a.5.5 0 0 1 0 1H.5a.5.5 0 0 1 0-1H1V9a.5.5 0 0 1 .5-.5zM4 15h3v-5H4v5zm5-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-3zm1 0v3h2v-3h-2z"/>
+                            </svg>
+                        </div>
+                        <div class="store-details">
+                            <h4 id="storeName" class="store-name">-</h4>
+                            <p id="storeAddress" class="store-address">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ubicación -->
+            <div class="card location-card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Ubicación</h6>
+                </div>
+                <div class="card-body">
+                    <div class="location-info">
+                        <div class="location-item">
+                            <span class="location-label">Latitud:</span>
+                            <span id="storeLatitude" class="location-value">-</span>
+                        </div>
+                        <div class="location-item">
+                            <span class="location-label">Longitud:</span>
+                            <span id="storeLongitude" class="location-value">-</span>
+                        </div>
+                    </div>
+                    <button id="openMapBtn" class="btn btn-outline-primary btn-sm mt-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M15.817.113A.5.5 0 0 1 16 .5v14a.5.5 0 0 1-.402.49l-5 1a.502.502 0 0 1-.196 0L5.5 15.01l-4.902.98A.5.5 0 0 1 0 15.5v-14a.5.5 0 0 1 .402-.49l5-1a.5.5 0 0 1 .196 0L10.5.99l4.902-.98a.5.5 0 0 1 .415.103zM10 1.91l-4-.8v12.98l4 .8V1.91zm1 12.98 4-.8V1.11l-4 .8v12.98zm-6-.8V1.11l-4 .8v12.98l4-.8z"/>
+                        </svg>
+                        Abrir en Mapa
+                    </button>
+                </div>
+            </div>
+
+            <!-- Productos -->
+            <div class="card products-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Productos</h6>
+                    <span id="productsCount" class="badge bg-secondary">0</span>
+                </div>
+                <div class="card-body p-0">
+                    <div id="productsList" class="list-group list-group-flush">
+                        <div class="list-group-item text-center text-muted py-4">
+                            No hay productos registrados
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="actions-container">
+                <button id="registerVisitBtn" class="btn btn-primary btn-lg w-100">
+                    Registrar Visita
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Status Indicator -->
+    <div id="network-status"></div>
+
+    <!-- Bootstrap JS -->
+    <script src="../../assets/bootstrap/js/bootstrap.js"></script>
+
+    <!-- Properties (BASE_URL) -->
+    <script src="../../properties.js"></script>
+
+    <!-- PWA Initialization -->
+    <script type="module" src="/pwa-init.js"></script>
+
+    <!-- Store Visit JS -->
+    <script src="./store-visit.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "name": "Abarrotes - Sistema de Gestión",
+  "short_name": "Abarrotes",
+  "description": "Sistema PWA para gestión de productos y tiendas de abarrotes con soporte offline",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0d6efd",
+  "background_color": "#ffffff",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/assets/images/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Productos",
+      "short_name": "Productos",
+      "description": "Gestionar productos",
+      "url": "/pages/products/products.html",
+      "icons": [
+        {
+          "src": "/assets/images/icon-128.png",
+          "sizes": "128x128",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Tiendas",
+      "short_name": "Tiendas",
+      "description": "Gestionar tiendas",
+      "url": "/pages/stores/stores.html",
+      "icons": [
+        {
+          "src": "/assets/images/icon-128.png",
+          "sizes": "128x128",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "iarc_rating_id": "",
+  "features": [
+    "offline-first",
+    "background-sync",
+    "push-notifications"
+  ]
+}

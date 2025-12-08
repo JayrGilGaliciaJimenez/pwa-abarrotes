@@ -6,6 +6,20 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Login - Sistema de Abarrotes</title>
 
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Sistema de gestión de productos y tiendas con soporte offline">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Abarrotes">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/assets/images/icon-192x192.png">
+
     <link href="./assets/bootstrap/css/bootstrap.css" rel="stylesheet">
     <link href="./pages/login/login.css" rel="stylesheet">
 
@@ -56,11 +70,18 @@
     <!-- Bootstrap 5 JS Bundle CDN (incluye Popper) -->
     <script src="./assets/bootstrap/js/bootstrap.js"></script>
 
-    <!-- Bootstrap Local JS (alternativo) -->
-    <!-- <script src="../../assets/bootstrap/js/bootstrap.bundle.min.js"></script> -->
+    <!-- PouchDB Library (Offline-First Database) -->
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.find.min.js"></script>
+
+    <!-- PouchDB Service (Abstracción para CRUD) -->
+    <script src="/services/pouchdb-service.js"></script>
 
     <!-- Properties (BASE_URL) -->
     <script src="./properties.js"></script>
+
+    <!-- PWA Initialization (IMPORTANTE: Registra el Service Worker) -->
+    <script type="module" src="/pwa-init.js"></script>
 
     <!-- Login JS -->
     <script src="./pages/login/login.js"></script>

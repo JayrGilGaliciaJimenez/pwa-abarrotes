@@ -1,6 +1,6 @@
 /**
- * Stores Page JavaScript - SIMPLIFICADO
- * SOLO GET y POST de tiendas
+ * Stores Page JavaScript
+ * Operaciones: GET, POST, DELETE (CREATE, DELETE)
  */
 
 // Variables globales
@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Event Listeners
     document.getElementById('btnSaveStore').addEventListener('click', saveStore);
+    document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
 
     // Limpiar formulario cuando se cierra el modal
     document.getElementById('storeModal').addEventListener('hidden.bs.modal', function() {
@@ -86,6 +87,7 @@ async function loadStoresTable() {
 
         // GET tiendas (desde backend si hay internet, o desde caché)
         stores = await syncService.getAllStores();
+        window.stores = stores; // Actualizar referencia global
 
         console.log(`[Stores] ✅ ${stores.length} tiendas obtenidas`);
         renderStoresTable();
@@ -128,7 +130,8 @@ function renderStoresTable() {
 
     let html = '';
     stores.forEach(store => {
-        const storeId = store._id;
+        // El ID puede ser uuid (del backend) o _id (de PouchDB)
+        const storeId = store.uuid || store._id;
         const displayName = store.name || 'Sin nombre';
 
         // Indicador si está pendiente de sincronización
@@ -147,7 +150,7 @@ function renderStoresTable() {
                     <button class="btn btn-action btn-edit" onclick="editStore('${storeId}')" title="Editar" disabled>
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar" disabled>
+                    <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -300,13 +303,82 @@ function editStore(id) {
     showToast('Editar tienda aún no implementado', 'info');
 }
 
-function deleteStore(id) {
-    showToast('Eliminar tienda aún no implementado', 'info');
+/**
+ * Abrir modal de confirmación para eliminar tienda
+ */
+function deleteStore(storeId) {
+    console.log('[Stores] 🗑️ Preparando eliminación de tienda:', storeId);
+
+    // Buscar la tienda por uuid o _id
+    const store = stores.find(s => (s.uuid === storeId || s._id === storeId));
+
+    if (!store) {
+        showToast('Tienda no encontrada', 'error');
+        return;
+    }
+
+    // Guardar el ID de la tienda a eliminar
+    currentStoreId = storeId;
+
+    // Mostrar el nombre de la tienda en el modal
+    document.getElementById('deleteStoreName').textContent = store.name;
+
+    // Mostrar modal de confirmación
+    deleteModal.show();
 }
 
-// Hacer funciones accesibles globalmente
+/**
+ * Confirmar y ejecutar eliminación de tienda
+ */
+async function confirmDelete() {
+    if (!currentStoreId) {
+        showToast('No hay tienda seleccionada', 'error');
+        return;
+    }
+
+    const btnDelete = document.getElementById('btnConfirmDelete');
+
+    // Deshabilitar botón mientras se procesa
+    btnDelete.disabled = true;
+    btnDelete.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Eliminando...';
+
+    try {
+        console.log('[Stores] 🗑️ Eliminando tienda:', currentStoreId);
+
+        // DELETE (online o marcar para eliminar offline)
+        const result = await syncService.deleteStore(currentStoreId);
+
+        if (result.success) {
+            if (result.offline) {
+                showToast('⚠️ Tienda marcada para eliminar (se sincronizará cuando haya conexión)', 'warning');
+            } else {
+                showToast('✅ Tienda eliminada exitosamente', 'success');
+            }
+
+            // Recargar tabla
+            await loadStoresTable();
+
+            // Cerrar modal
+            deleteModal.hide();
+        } else {
+            throw new Error('Error al eliminar tienda');
+        }
+
+    } catch (error) {
+        console.error('[Stores] ❌ Error al eliminar tienda:', error);
+        showToast('Error al eliminar tienda: ' + error.message, 'error');
+    } finally {
+        // Rehabilitar botón
+        btnDelete.disabled = false;
+        btnDelete.innerHTML = 'Eliminar';
+        currentStoreId = null;
+    }
+}
+
+// Hacer funciones y variables accesibles globalmente
 window.loadStoresTable = loadStoresTable;
 window.editStore = editStore;
 window.deleteStore = deleteStore;
+window.stores = stores; // Para debugging
 
-console.log('[Stores] 🏪 Módulo de tiendas cargado (SIMPLIFICADO - Solo GET y POST)');
+console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, DELETE)');

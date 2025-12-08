@@ -19,4 +19,14 @@ public class UserController {
         return userService.getAllUsers();
     }
 
+    @GetMapping("/delivery")
+    public ResponseEntity<Object> getDeliveryUsers() {
+        return userService.getDeliveryUsers();
+    }
+
+    @GetMapping("/admin")
+    public ResponseEntity<Object> getAdminUsers() {
+        return userService.getAdminUsers();
+    }
+
 }

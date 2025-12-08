@@ -29,7 +29,8 @@ public class UserService {
                             .email(user.getEmail())
                             .stores(
                                     user.getStores().stream()
-                                            .map(store -> StoreResponseDto.builder()
+                                            .map(store -> StoreResponseDto
+                                                    .builder()
                                                     .uuid(store.getUuid())
                                                     .name(store.getName())
                                                     .address(store.getAddress())
@@ -44,6 +45,68 @@ public class UserService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while retrieving users.");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<Object> getDeliveryUsers() {
+        try {
+            List<UserModel> users = userRepository.findAllWithStores();
+            List<UserResponseDto> deliveryUsersDto = users.stream()
+                    .filter(user -> user.getRole() == Role.USER)
+                    .map(user -> UserResponseDto.builder()
+                            .uuid(user.getUuid())
+                            .name(user.getName())
+                            .email(user.getEmail())
+                            .stores(
+                                    user.getStores().stream()
+                                            .map(store -> StoreResponseDto
+                                                    .builder()
+                                                    .uuid(store.getUuid())
+                                                    .name(store.getName())
+                                                    .address(store.getAddress())
+                                                    .latitude(store.getLatitude())
+                                                    .longitude(store.getLongitude())
+                                                    .qrCode(store.getQrCode())
+                                                    .build())
+                                            .toList())
+                            .build())
+                    .toList();
+            return Utilities.generateResponse(HttpStatus.OK, "Delivery users retrieved successfully", deliveryUsersDto);
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while retrieving delivery users: " + e.getMessage());
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<Object> getAdminUsers() {
+        try {
+            List<UserModel> users = userRepository.findAllWithStores();
+            List<UserResponseDto> adminUsersDto = users.stream()
+                    .filter(user -> user.getRole() == Role.ADMIN)
+                    .map(user -> UserResponseDto.builder()
+                            .uuid(user.getUuid())
+                            .name(user.getName())
+                            .email(user.getEmail())
+                            .stores(
+                                    user.getStores().stream()
+                                            .map(store -> StoreResponseDto
+                                                    .builder()
+                                                    .uuid(store.getUuid())
+                                                    .name(store.getName())
+                                                    .address(store.getAddress())
+                                                    .latitude(store.getLatitude())
+                                                    .longitude(store.getLongitude())
+                                                    .qrCode(store.getQrCode())
+                                                    .build())
+                                            .toList())
+                            .build())
+                    .toList();
+            return Utilities.generateResponse(HttpStatus.OK, "Admin users retrieved successfully", adminUsersDto);
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while retrieving admin users: " + e.getMessage());
         }
     }
 

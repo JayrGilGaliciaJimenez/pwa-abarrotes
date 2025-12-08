@@ -1,5 +1,7 @@
 package mtzg.carlos.server.modules.orders;
 
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -32,6 +34,9 @@ public class OrderModel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "uuid", nullable = false, unique = true)
+    private UUID uuid;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;

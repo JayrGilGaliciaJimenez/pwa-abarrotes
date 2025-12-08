@@ -3,6 +3,7 @@ package mtzg.carlos.server.modules.visits;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,5 +39,10 @@ public class VisitController {
             @RequestParam("ordersJson") String ordersJson,
             @RequestParam("photo") MultipartFile photo) {
         return visitService.registerVisit(userUuid, storeUuid, validation, ordersJson, photo);
+    }
+
+    @DeleteMapping("/{uuid}")
+    public ResponseEntity<Object> deleteVisit(@PathVariable("uuid") UUID uuid) {
+        return visitService.deleteVisit(uuid);
     }
 }

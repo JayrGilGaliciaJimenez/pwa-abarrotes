@@ -168,6 +168,22 @@ public class VisitService {
         }
     }
 
+    @Transactional
+    public ResponseEntity<Object> deleteVisit(UUID visitUuid) {
+        try {
+            Optional<VisitModel> visitOpt = visitRepository.findByUuid(visitUuid);
+            if (visitOpt.isEmpty()) {
+                return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Visit not found");
+            }
+
+            visitRepository.delete(visitOpt.get());
+            return Utilities.simpleResponse(HttpStatus.OK, "Visit deleted successfully");
+        } catch (Exception e) {
+            return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "An error occurred while deleting the visit." + e.getMessage());
+        }
+    }
+
     private String saveVisitPhoto(String userName, String storeName, MultipartFile photo, String baseDir)
             throws Exception {
         String rootPath = System.getProperty("user.dir");

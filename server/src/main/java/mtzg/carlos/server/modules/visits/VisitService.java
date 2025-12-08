@@ -119,11 +119,13 @@ public class VisitService {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
             }
 
+            StoreModel store = storeOpt.get();
+
             if (!userHasStoreInRoute(userOpt.get(), storeUuid)) {
                 return Utilities.simpleResponse(HttpStatus.FORBIDDEN, "User does not have access to this store");
             }
 
-            String photoPath = saveVisitPhoto(userOpt.get().getName(), storeOpt.get().getName(), photo, "uploads");
+            String photoPath = saveVisitPhoto(userOpt.get().getName(), store.getName(), photo, "uploads");
 
             VisitModel visit = VisitModel.builder()
                     .uuid(UUID.randomUUID())
@@ -131,7 +133,7 @@ public class VisitService {
                     .photo(photoPath)
                     .validation(validation)
                     .user(userOpt.get())
-                    .store(storeOpt.get())
+                    .store(store)
                     .build();
 
             ObjectMapper mapper = new ObjectMapper();
@@ -139,6 +141,7 @@ public class VisitService {
                     new TypeReference<List<OrderRegisterDto>>() {
                     });
 
+            List<UUID> notAssignedProducts = new java.util.ArrayList<>();
             if (orderDtos != null && !orderDtos.isEmpty()) {
                 List<OrderModel> orders = orderDtos.stream()
                         .map(orderDto -> {
@@ -146,17 +149,28 @@ public class VisitService {
                             if (productOpt.isEmpty()) {
                                 return null;
                             }
+                            ProductModel product = productOpt.get();
+                            boolean assigned = store.getProducts() != null &&
+                                    store.getProducts().stream().anyMatch(p -> p.getUuid().equals(product.getUuid()));
+                            if (!assigned) {
+                                notAssignedProducts.add(product.getUuid());
+                                return null;
+                            }
                             return OrderModel.builder()
                                     .uuid(UUID.randomUUID())
                                     .quantity(orderDto.getQuantity())
-                                    .unitPrice(productOpt.get().getBasePrice())
-                                    .total(orderDto.getQuantity() * productOpt.get().getBasePrice())
-                                    .product(productOpt.get())
+                                    .unitPrice(product.getBasePrice())
+                                    .total(orderDto.getQuantity() * product.getBasePrice())
+                                    .product(product)
                                     .visit(visit)
                                     .build();
                         })
                         .filter(order -> order != null)
                         .toList();
+                if (!notAssignedProducts.isEmpty()) {
+                    return Utilities.simpleResponse(HttpStatus.BAD_REQUEST,
+                            "The following products are not assigned to this store: " + notAssignedProducts);
+                }
                 visit.setOrders(new HashSet<>(orders));
             }
 

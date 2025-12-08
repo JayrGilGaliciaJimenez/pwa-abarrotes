@@ -361,6 +361,97 @@ class HybridSyncService {
     }
 
     // ==========================================
+    // DELETE PRODUCTS (ELIMINAR)
+    // ==========================================
+
+    /**
+     * Eliminar producto existente
+     * - Con internet: DELETE al backend inmediatamente
+     * - Sin internet: Marcar en PouchDB como pendiente de eliminar
+     */
+    async deleteProduct(productUuid) {
+        console.log('[HybridSync] 🗑️ Eliminando producto:', productUuid);
+        console.log('[HybridSync] Estado de conexión:', navigator.onLine ? '🟢 Online' : '🔴 Offline');
+
+        if (navigator.onLine) {
+            try {
+                console.log('[HybridSync] 🌐 Enviando DELETE al BACKEND...');
+
+                // 1. DELETE al backend
+                const response = await fetch(`${BACKEND_URL}/products/${productUuid}`, {
+                    method: 'DELETE',
+                    headers: this.getHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                console.log('[HybridSync] ✅ Producto eliminado en backend:', productUuid);
+
+                // 2. Eliminar de PouchDB
+                try {
+                    const existingDoc = await this.dbProducts.get(productUuid);
+                    await this.dbProducts.remove(existingDoc);
+                    console.log('[HybridSync] ✅ Producto eliminado del caché');
+                } catch (error) {
+                    console.warn('[HybridSync] ⚠️ Producto no estaba en caché:', error.message);
+                }
+
+                return { success: true };
+
+            } catch (error) {
+                console.warn('[HybridSync] ⚠️ Error al eliminar en backend, marcando para eliminar:', error.message);
+                // Si falla, marcar para eliminar offline
+                return await this.deleteProductOffline(productUuid);
+            }
+        } else {
+            // Sin internet, marcar para eliminar
+            console.log('[HybridSync] 📴 SIN INTERNET - Marcando para eliminar...');
+            return await this.deleteProductOffline(productUuid);
+        }
+    }
+
+    /**
+     * Marcar producto para eliminar offline (pendiente de sincronización)
+     */
+    async deleteProductOffline(productUuid) {
+        try {
+            // Intentar obtener el documento existente
+            let existingDoc;
+            try {
+                existingDoc = await this.dbProducts.get(productUuid);
+            } catch (error) {
+                console.warn('[HybridSync] ⚠️ Producto no encontrado en caché:', productUuid);
+                // Si no existe en caché, creamos un documento temporal solo para marcar el delete
+                existingDoc = { _id: productUuid };
+            }
+
+            const doc = {
+                _id: productUuid,
+                _rev: existingDoc._rev,
+                uuid: productUuid,
+                syncPending: true,
+                syncOperation: 'delete',
+                productUuid: productUuid,
+                syncTimestamp: Date.now(),
+                deletedAt: new Date().toISOString(),
+                // Preservar datos originales por si se necesita revertir
+                ...existingDoc
+            };
+
+            await this.dbProducts.put(doc);
+            console.log('[HybridSync] ✅ Producto marcado para ELIMINAR (pendiente de sincronización)');
+
+            return { success: true, offline: true };
+
+        } catch (error) {
+            console.error('[HybridSync] ❌ Error al marcar para eliminar offline:', error);
+            throw error;
+        }
+    }
+
+    // ==========================================
     // STORES (TIENDAS) - CRUD HÍBRIDO
     // ==========================================
 
@@ -556,25 +647,25 @@ class HybridSyncService {
     }
 
     // ==========================================
-    // USERS (USUARIOS) - SOLO LECTURA
+    // DELETE STORES (ELIMINAR TIENDAS)
     // ==========================================
 
     /**
-     * Obtener todos los usuarios
-     * - Con internet: GET al backend + cachea en PouchDB
-     * - Sin internet: Lee de PouchDB
+     * Eliminar tienda existente
+     * - Con internet: DELETE al backend inmediatamente
+     * - Sin internet: Marcar en PouchDB como pendiente de eliminar
      */
-    async getAllUsers() {
-        console.log('[HybridSync] 👥 Obteniendo usuarios...');
+    async deleteStore(storeUuid) {
+        console.log('[HybridSync] 🗑️ Eliminando tienda:', storeUuid);
         console.log('[HybridSync] Estado de conexión:', navigator.onLine ? '🟢 Online' : '🔴 Offline');
 
         if (navigator.onLine) {
             try {
-                console.log('[HybridSync] 🌐 Cargando usuarios desde BACKEND...');
+                console.log('[HybridSync] 🌐 Enviando DELETE al BACKEND...');
 
-                // 1. GET al backend
-                const response = await fetch(`${BACKEND_URL}/users`, {
-                    method: 'GET',
+                // 1. DELETE al backend
+                const response = await fetch(`${BACKEND_URL}/stores/${storeUuid}`, {
+                    method: 'DELETE',
                     headers: this.getHeaders()
                 });
 
@@ -582,150 +673,66 @@ class HybridSyncService {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                const responseData = await response.json();
-                const users = responseData.data; // Los usuarios están en .data
-                console.log(`[HybridSync] ✅ ${users.length} usuarios obtenidos del backend`);
+                console.log('[HybridSync] ✅ Tienda eliminada en backend:', storeUuid);
 
-                // 2. Cachear en PouchDB para uso offline
-                await this.cacheUsersInPouchDB(users);
-
-                return users;
-
-            } catch (error) {
-                console.warn('[HybridSync] ⚠️ Error al cargar del backend, usando caché:', error.message);
-                // Si falla, cargar desde caché
-                return await this.loadUsersFromCache();
-            }
-        } else {
-            // Sin internet, cargar desde caché
-            console.log('[HybridSync] 📴 SIN INTERNET - Cargando desde caché...');
-            return await this.loadUsersFromCache();
-        }
-    }
-
-    /**
-     * Cachear usuarios del backend en PouchDB
-     */
-    async cacheUsersInPouchDB(users) {
-        try {
-            console.log('[HybridSync] 💾 Cacheando usuarios en PouchDB...');
-
-            for (const user of users) {
+                // 2. Eliminar de PouchDB
                 try {
-                    // Intentar obtener el documento existente
-                    const existingDoc = await this.dbUsers.get(user.uuid).catch(() => null);
-
-                    if (existingDoc) {
-                        // Actualizar documento existente
-                        await this.dbUsers.put({
-                            _id: user.uuid,
-                            _rev: existingDoc._rev,
-                            ...user,
-                            cachedAt: new Date().toISOString()
-                        });
-                    } else {
-                        // Crear nuevo documento
-                        await this.dbUsers.put({
-                            _id: user.uuid,
-                            ...user,
-                            cachedAt: new Date().toISOString()
-                        });
-                    }
+                    const existingDoc = await this.dbStores.get(storeUuid);
+                    await this.dbStores.remove(existingDoc);
+                    console.log('[HybridSync] ✅ Tienda eliminada del caché');
                 } catch (error) {
-                    console.warn(`[HybridSync] ⚠️ Error cacheando usuario ${user.name}:`, error.message);
-                }
-            }
-
-            console.log('[HybridSync] ✅ Usuarios cacheados correctamente');
-        } catch (error) {
-            console.error('[HybridSync] ❌ Error al cachear usuarios:', error);
-        }
-    }
-
-    /**
-     * Cargar usuarios desde caché local (PouchDB)
-     */
-    async loadUsersFromCache() {
-        try {
-            console.log('[HybridSync] 📂 Cargando usuarios desde CACHÉ (PouchDB)...');
-
-            const result = await this.dbUsers.allDocs({
-                include_docs: true,
-                descending: true
-            });
-
-            const users = result.rows
-                .filter(row => !row.id.startsWith('_design/'))
-                .map(row => row.doc);
-
-            console.log(`[HybridSync] ✅ ${users.length} usuarios cargados desde caché`);
-            return users;
-
-        } catch (error) {
-            console.error('[HybridSync] ❌ Error al cargar desde caché:', error);
-            return [];
-        }
-    }
-
-    // ==========================================
-    // ASIGNACIONES (ROUTES)
-    // ==========================================
-
-    /**
-     * Asignar repartidor a tienda
-     * - Con internet: POST al backend
-     * - Sin internet: Guardar en PouchDB (assignments)
-     */
-    async assignDriver(userUuid, storeUuid) {
-        const assignmentData = { userUuid, storeUuid };
-        console.log('[HybridSync] 🔗 Asignando repartidor:', assignmentData);
-        console.log('[HybridSync] Estado de conexión:', navigator.onLine ? '🟢 Online' : '🔴 Offline');
-
-        if (navigator.onLine) {
-            try {
-                console.log('[HybridSync] 🌐 Enviando asignación al BACKEND...');
-                const response = await fetch(`${BACKEND_URL}/routes/assign`, {
-                    method: 'POST',
-                    headers: this.getHeaders(),
-                    body: JSON.stringify(assignmentData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    console.warn('[HybridSync] ⚠️ Tienda no estaba en caché:', error.message);
                 }
 
-                const responseData = await response.json();
-                console.log('[HybridSync] ✅ Asignación exitosa en backend');
-                return { success: true, data: responseData };
+                return { success: true };
 
             } catch (error) {
-                console.warn('[HybridSync] ⚠️ Error al asignar en backend, guardando localmente:', error.message);
-                return await this.saveAssignmentOffline(assignmentData);
+                console.warn('[HybridSync] ⚠️ Error al eliminar en backend, marcando para eliminar:', error.message);
+                // Si falla, marcar para eliminar offline
+                return await this.deleteStoreOffline(storeUuid);
             }
         } else {
-            console.log('[HybridSync] 📴 SIN INTERNET - Guardando asignación localmente...');
-            return await this.saveAssignmentOffline(assignmentData);
+            // Sin internet, marcar para eliminar
+            console.log('[HybridSync] 📴 SIN INTERNET - Marcando para eliminar...');
+            return await this.deleteStoreOffline(storeUuid);
         }
     }
 
     /**
-     * Guardar asignación offline
+     * Marcar tienda para eliminar offline (pendiente de sincronización)
      */
-    async saveAssignmentOffline(data) {
+    async deleteStoreOffline(storeUuid) {
         try {
-            const tempId = `assign_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+            // Intentar obtener el documento existente
+            let existingDoc;
+            try {
+                existingDoc = await this.dbStores.get(storeUuid);
+            } catch (error) {
+                console.warn('[HybridSync] ⚠️ Tienda no encontrada en caché:', storeUuid);
+                // Si no existe en caché, creamos un documento temporal solo para marcar el delete
+                existingDoc = { _id: storeUuid };
+            }
+
             const doc = {
-                _id: tempId,
-                ...data,
+                _id: storeUuid,
+                _rev: existingDoc._rev,
+                uuid: storeUuid,
                 syncPending: true,
-                syncOperation: 'assign',
-                syncTimestamp: Date.now()
+                syncOperation: 'delete',
+                storeUuid: storeUuid,
+                syncTimestamp: Date.now(),
+                deletedAt: new Date().toISOString(),
+                // Preservar datos originales por si se necesita revertir
+                ...existingDoc
             };
-            await this.dbAssignments.put(doc);
-            console.log('[HybridSync] ✅ Asignación guardada OFFLINE');
+
+            await this.dbStores.put(doc);
+            console.log('[HybridSync] ✅ Tienda marcada para ELIMINAR (pendiente de sincronización)');
+
             return { success: true, offline: true };
+
         } catch (error) {
-            console.error('[HybridSync] ❌ Error al guardar asignación offline:', error);
+            console.error('[HybridSync] ❌ Error al marcar para eliminar offline:', error);
             throw error;
         }
     }
@@ -750,12 +757,14 @@ class HybridSyncService {
 
                 console.log(`[HybridSync] 📦 ${pendingProducts.length} productos pendientes de sincronización`);
 
-                // Separar por operación: create vs update
+                // Separar por operación: create vs update vs delete
                 const productsToCreate = pendingProducts.filter(doc => doc.syncOperation === 'create');
                 const productsToUpdate = pendingProducts.filter(doc => doc.syncOperation === 'update');
+                const productsToDelete = pendingProducts.filter(doc => doc.syncOperation === 'delete');
 
                 console.log(`[HybridSync] ➕ ${productsToCreate.length} productos para crear`);
                 console.log(`[HybridSync] ✏️ ${productsToUpdate.length} productos para actualizar`);
+                console.log(`[HybridSync] 🗑️ ${productsToDelete.length} productos para eliminar`);
 
                 // Sincronizar CREAR productos (POST)
                 for (const doc of productsToCreate) {
@@ -827,6 +836,30 @@ class HybridSyncService {
                     }
                 }
 
+                // Sincronizar ELIMINAR productos (DELETE)
+                for (const doc of productsToDelete) {
+                    try {
+                        const productUuid = doc.productUuid || doc.uuid || doc._id;
+                        console.log(`[HybridSync] 🔄 Eliminando producto: ${doc.name || productUuid}...`);
+
+                        const response = await fetch(`${BACKEND_URL}/products/${productUuid}`, {
+                            method: 'DELETE',
+                            headers: this.getHeaders()
+                        });
+
+                        if (response.ok) {
+                            console.log(`[HybridSync] ✅ Producto eliminado: ${productUuid}`);
+
+                            // Eliminar de PouchDB
+                            await this.dbProducts.remove(doc);
+                        } else {
+                            console.error(`[HybridSync] ❌ Error eliminando producto ${productUuid}: HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error(`[HybridSync] ❌ Error eliminando producto:`, error.message);
+                    }
+                }
+
                 // ====== SINCRONIZAR TIENDAS ======
                 const storesResult = await this.dbStores.allDocs({ include_docs: true });
                 const pendingStores = storesResult.rows
@@ -835,10 +868,19 @@ class HybridSyncService {
 
                 console.log(`[HybridSync] 🏪 ${pendingStores.length} tiendas pendientes de sincronización`);
 
-                // Sincronizar cada tienda
-                for (const doc of pendingStores) {
+                // Separar por operación: create vs update vs delete
+                const storesToCreate = pendingStores.filter(doc => doc.syncOperation === 'create');
+                const storesToUpdate = pendingStores.filter(doc => doc.syncOperation === 'update');
+                const storesToDelete = pendingStores.filter(doc => doc.syncOperation === 'delete');
+
+                console.log(`[HybridSync] ➕ ${storesToCreate.length} tiendas para crear`);
+                console.log(`[HybridSync] ✏️ ${storesToUpdate.length} tiendas para actualizar`);
+                console.log(`[HybridSync] 🗑️ ${storesToDelete.length} tiendas para eliminar`);
+
+                // Sincronizar CREAR tiendas (POST)
+                for (const doc of storesToCreate) {
                     try {
-                        console.log(`[HybridSync] 🔄 Sincronizando tienda: ${doc.name}...`);
+                        console.log(`[HybridSync] 🔄 Creando tienda: ${doc.name}...`);
 
                         const response = await fetch(`${BACKEND_URL}/stores`, {
                             method: 'POST',
@@ -854,7 +896,7 @@ class HybridSyncService {
                         if (response.ok) {
                             const responseData = await response.json();
                             const savedStore = responseData.data;
-                            console.log(`[HybridSync] ✅ Tienda sincronizada: ${doc.name} → ${savedStore.uuid}`);
+                            console.log(`[HybridSync] ✅ Tienda creada: ${doc.name} → ${savedStore.uuid}`);
 
                             await this.dbStores.remove(doc);
                             await this.dbStores.put({
@@ -863,10 +905,71 @@ class HybridSyncService {
                                 cachedAt: new Date().toISOString()
                             });
                         } else {
-                            console.error(`[HybridSync] ❌ Error sincronizando tienda ${doc.name}: HTTP ${response.status}`);
+                            console.error(`[HybridSync] ❌ Error creando tienda ${doc.name}: HTTP ${response.status}`);
                         }
                     } catch (error) {
-                        console.error(`[HybridSync] ❌ Error sincronizando tienda ${doc.name}:`, error.message);
+                        console.error(`[HybridSync] ❌ Error creando tienda ${doc.name}:`, error.message);
+                    }
+                }
+
+                // Sincronizar ACTUALIZAR tiendas (PUT)
+                for (const doc of storesToUpdate) {
+                    try {
+                        const storeUuid = doc.storeUuid || doc.uuid || doc._id;
+                        console.log(`[HybridSync] 🔄 Actualizando tienda: ${doc.name} (${storeUuid})...`);
+
+                        const response = await fetch(`${BACKEND_URL}/stores/${storeUuid}`, {
+                            method: 'PUT',
+                            headers: this.getHeaders(),
+                            body: JSON.stringify({
+                                name: doc.name,
+                                address: doc.address,
+                                latitude: doc.latitude,
+                                longitude: doc.longitude
+                            })
+                        });
+
+                        if (response.ok) {
+                            const responseData = await response.json();
+                            const updatedStore = responseData.data;
+                            console.log(`[HybridSync] ✅ Tienda actualizada: ${doc.name} → ${updatedStore.uuid}`);
+
+                            // Actualizar en PouchDB quitando flags de sincronización
+                            await this.dbStores.put({
+                                _id: updatedStore.uuid,
+                                _rev: doc._rev,
+                                ...updatedStore,
+                                cachedAt: new Date().toISOString()
+                            });
+                        } else {
+                            console.error(`[HybridSync] ❌ Error actualizando tienda ${doc.name}: HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error(`[HybridSync] ❌ Error actualizando tienda ${doc.name}:`, error.message);
+                    }
+                }
+
+                // Sincronizar ELIMINAR tiendas (DELETE)
+                for (const doc of storesToDelete) {
+                    try {
+                        const storeUuid = doc.storeUuid || doc.uuid || doc._id;
+                        console.log(`[HybridSync] 🔄 Eliminando tienda: ${doc.name || storeUuid}...`);
+
+                        const response = await fetch(`${BACKEND_URL}/stores/${storeUuid}`, {
+                            method: 'DELETE',
+                            headers: this.getHeaders()
+                        });
+
+                        if (response.ok) {
+                            console.log(`[HybridSync] ✅ Tienda eliminada: ${storeUuid}`);
+
+                            // Eliminar de PouchDB
+                            await this.dbStores.remove(doc);
+                        } else {
+                            console.error(`[HybridSync] ❌ Error eliminando tienda ${storeUuid}: HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error(`[HybridSync] ❌ Error eliminando tienda:`, error.message);
                     }
                 }
 

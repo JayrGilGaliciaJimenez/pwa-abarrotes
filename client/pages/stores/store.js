@@ -1,6 +1,6 @@
 /**
- * Stores Page JavaScript - SIMPLIFICADO
- * SOLO GET y POST de tiendas
+ * Stores Page JavaScript
+ * Operaciones: GET, POST, DELETE (CREATE, DELETE)
  */
 
 // Variables globales
@@ -28,7 +28,8 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // Event Listeners
     document.getElementById('btnSaveStore').addEventListener('click', saveStore);
-    document.getElementById('btnSaveAssignment').addEventListener('click', saveAssignment);
+
+    document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
 
     // Limpiar formulario cuando se cierra el modal
     document.getElementById('storeModal').addEventListener('hidden.bs.modal', function () {
@@ -89,6 +90,7 @@ async function loadStoresTable() {
 
         // GET tiendas (desde backend si hay internet, o desde caché)
         stores = await syncService.getAllStores();
+        window.stores = stores; // Actualizar referencia global
 
         console.log(`[Stores] ✅ ${stores.length} tiendas obtenidas`);
         renderStoresTable();
@@ -131,7 +133,10 @@ function renderStoresTable() {
 
     let html = '';
     stores.forEach(store => {
-        const storeId = store.uuid;
+
+        // El ID puede ser uuid (del backend) o _id (de PouchDB)
+        const storeId = store.uuid || store._id;
+
         const displayName = store.name || 'Sin nombre';
 
         // Indicador si está pendiente de sincronización
@@ -150,7 +155,7 @@ function renderStoresTable() {
                     <button class="btn btn-action btn-edit" onclick="editStore('${storeId}')" title="Editar" disabled>
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar" disabled>
+                    <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
                     </button>
                     <button class="btn btn-action btn-info" onclick='assignDriver("${storeId}")' title="Asignar Repartidor">
@@ -306,99 +311,82 @@ function editStore(id) {
     showToast('Editar tienda aún no implementado', 'info');
 }
 
-function deleteStore(id) {
-    showToast('Eliminar tienda aún no implementado', 'info');
-}
+/**
+ * Abrir modal de confirmación para eliminar tienda
+ */
+function deleteStore(storeId) {
+    console.log('[Stores] 🗑️ Preparando eliminación de tienda:', storeId);
 
-// Repartidores hardcodeados para prueba (ELIMINADO)
+    // Buscar la tienda por uuid o _id
+    const store = stores.find(s => (s.uuid === storeId || s._id === storeId));
 
-async function assignDriver(storeId) {
-    // Imprimir en consola
-    console.log(`[Stores] Asignar repartidor a tienda ID: ${storeId}`);
-    
-    currentStoreId = storeId;
-    const select = document.getElementById('driverSelect');
-    
-    // Mostrar estado de carga
-    select.innerHTML = '<option value="">Cargando repartidores...</option>';
-    select.disabled = true;
-    
-    assignModal.show();
-
-    try {
-        // Obtener usuarios desde el servicio
-        const users = await syncService.getAllUsers();
-        
-        // Filtrar solo usuarios con rol 'USER' (repartidores)
-        // const drivers = users.filter(user => user.role === 'USER');
-        
-        // Poblar select
-        select.innerHTML = '<option value="">Seleccione un repartidor...</option>';
-        
-        if (users.length === 0) {
-            select.innerHTML += '<option value="" disabled>No hay repartidores disponibles</option>';
-        } else {
-            users.forEach(driver => {
-                // Usar uuid como valor
-                select.innerHTML += `<option value="${driver.uuid}">${driver.name} ${driver.lastname || ''}</option>`;
-            });
-        }
-    } catch (error) {
-        console.error('[Stores] Error al cargar repartidores:', error);
-        select.innerHTML = '<option value="">Error al cargar</option>';
-        showToast('Error al cargar lista de repartidores', 'error');
-    } finally {
-        select.disabled = false;
-    }
-}
-
-async function saveAssignment() {
-    const driverId = document.getElementById('driverSelect').value;
-    const btnSave = document.getElementById('btnSaveAssignment');
-    
-    if (!driverId) {
-        showToast('Por favor seleccione un repartidor', 'error');
+    if (!store) {
+        showToast('Tienda no encontrada', 'error');
         return;
     }
-    
-    // Obtener nombre del repartidor seleccionado para el mensaje
-    const select = document.getElementById('driverSelect');
-    const driverName = select.options[select.selectedIndex].text;
-    
-    // Deshabilitar botón
-    btnSave.disabled = true;
-    btnSave.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Asignando...';
+
+    // Guardar el ID de la tienda a eliminar
+    currentStoreId = storeId;
+
+    // Mostrar el nombre de la tienda en el modal
+    document.getElementById('deleteStoreName').textContent = store.name;
+
+    // Mostrar modal de confirmación
+    deleteModal.show();
+}
+
+/**
+ * Confirmar y ejecutar eliminación de tienda
+ */
+async function confirmDelete() {
+    if (!currentStoreId) {
+        showToast('No hay tienda seleccionada', 'error');
+        return;
+    }
+
+    const btnDelete = document.getElementById('btnConfirmDelete');
+
+    // Deshabilitar botón mientras se procesa
+    btnDelete.disabled = true;
+    btnDelete.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Eliminando...';
 
     try {
-        console.log(`[Stores] Asignando repartidor ${driverName} (${driverId}) a tienda ${currentStoreId}`);
-        
-        // Llamada al servicio de sincronización
-        const result = await syncService.assignDriver(driverId, currentStoreId);
-        
+        console.log('[Stores] 🗑️ Eliminando tienda:', currentStoreId);
+
+        // DELETE (online o marcar para eliminar offline)
+        const result = await syncService.deleteStore(currentStoreId);
+
         if (result.success) {
             if (result.offline) {
-                showToast('⚠️ Asignación guardada localmente (se sincronizará cuando haya conexión)', 'warning');
+                showToast('⚠️ Tienda marcada para eliminar (se sincronizará cuando haya conexión)', 'warning');
             } else {
-                showToast(`✅ Repartidor ${driverName} asignado correctamente`, 'success');
+                showToast('✅ Tienda eliminada exitosamente', 'success');
             }
-            assignModal.hide();
+
+            // Recargar tabla
+            await loadStoresTable();
+
+            // Cerrar modal
+            deleteModal.hide();
         } else {
-            throw new Error('Error al asignar repartidor');
+            throw new Error('Error al eliminar tienda');
         }
+
     } catch (error) {
-        console.error('[Stores] ❌ Error al asignar:', error);
-        showToast('Error al asignar repartidor: ' + error.message, 'error');
+        console.error('[Stores] ❌ Error al eliminar tienda:', error);
+        showToast('Error al eliminar tienda: ' + error.message, 'error');
     } finally {
         // Rehabilitar botón
-        btnSave.disabled = false;
-        btnSave.innerHTML = 'Asignar';
+        btnDelete.disabled = false;
+        btnDelete.innerHTML = 'Eliminar';
+        currentStoreId = null;
     }
 }
 
-// Hacer funciones accesibles globalmente
+// Hacer funciones y variables accesibles globalmente
 window.loadStoresTable = loadStoresTable;
 window.editStore = editStore;
 window.deleteStore = deleteStore;
-window.assignDriver = assignDriver;
+window.stores = stores; // Para debugging
 
-console.log('[Stores] 🏪 Módulo de tiendas cargado (SIMPLIFICADO - Solo GET y POST)');
+console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, DELETE)');

@@ -1,6 +1,6 @@
 /**
  * Products Page JavaScript
- * Operaciones: GET, POST, PUT (CREATE, UPDATE)
+ * Operaciones: GET, POST, PUT, DELETE (CREATE, UPDATE, DELETE)
  */
 
 // Variables globales
@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Event Listeners
     document.getElementById('btnAddProduct').addEventListener('click', openAddProductModal);
     document.getElementById('btnSaveProduct').addEventListener('click', saveProduct);
+    document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
 
     // Limpiar formulario cuando se cierra el modal
     document.getElementById('productModal').addEventListener('hidden.bs.modal', function() {
@@ -151,7 +152,7 @@ function renderProductsTable() {
                     <button class="btn btn-action btn-edit" onclick="editProduct('${productId}')" title="Editar">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-action btn-delete" onclick="deleteProduct('${productId}')" title="Eliminar" disabled>
+                    <button class="btn btn-action btn-delete" onclick="deleteProduct('${productId}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -348,9 +349,76 @@ function showToast(message, type = 'info') {
     });
 }
 
-// Función placeholder para eliminar (NO IMPLEMENTADA AÚN)
-function deleteProduct(id) {
-    showToast('Eliminar producto aún no implementado', 'info');
+/**
+ * Abrir modal de confirmación para eliminar producto
+ */
+function deleteProduct(productId) {
+    console.log('[Products] 🗑️ Preparando eliminación de producto:', productId);
+
+    // Buscar el producto por uuid o _id
+    const product = products.find(p => (p.uuid === productId || p._id === productId));
+
+    if (!product) {
+        showToast('Producto no encontrado', 'error');
+        return;
+    }
+
+    // Guardar el ID del producto a eliminar
+    currentProductId = productId;
+
+    // Mostrar el nombre del producto en el modal
+    document.getElementById('deleteProductName').textContent = product.name;
+
+    // Mostrar modal de confirmación
+    deleteModal.show();
+}
+
+/**
+ * Confirmar y ejecutar eliminación de producto
+ */
+async function confirmDelete() {
+    if (!currentProductId) {
+        showToast('No hay producto seleccionado', 'error');
+        return;
+    }
+
+    const btnDelete = document.getElementById('btnConfirmDelete');
+
+    // Deshabilitar botón mientras se procesa
+    btnDelete.disabled = true;
+    btnDelete.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Eliminando...';
+
+    try {
+        console.log('[Products] 🗑️ Eliminando producto:', currentProductId);
+
+        // DELETE (online o marcar para eliminar offline)
+        const result = await syncService.deleteProduct(currentProductId);
+
+        if (result.success) {
+            if (result.offline) {
+                showToast('⚠️ Producto marcado para eliminar (se sincronizará cuando haya conexión)', 'warning');
+            } else {
+                showToast('✅ Producto eliminado exitosamente', 'success');
+            }
+
+            // Recargar tabla
+            await loadProductsTable();
+
+            // Cerrar modal
+            deleteModal.hide();
+        } else {
+            throw new Error('Error al eliminar producto');
+        }
+
+    } catch (error) {
+        console.error('[Products] ❌ Error al eliminar producto:', error);
+        showToast('Error al eliminar producto: ' + error.message, 'error');
+    } finally {
+        // Rehabilitar botón
+        btnDelete.disabled = false;
+        btnDelete.innerHTML = 'Eliminar';
+        currentProductId = null;
+    }
 }
 
 // Hacer funciones y variables accesibles globalmente
@@ -359,4 +427,4 @@ window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.products = products; // Para debugging
 
-console.log('[Products] 📦 Módulo de productos cargado (GET, POST, PUT)');
+console.log('[Products] 📦 Módulo de productos cargado (GET, POST, PUT, DELETE - CRUD completo)');

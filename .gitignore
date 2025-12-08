@@ -44,3 +44,5 @@ application.properties
 
 # QR code files
 qr/
+
+uploads/

@@ -32,6 +32,16 @@ jwt.secret=${JWT_SECRET:YOUR_SECRET_KEY_HERE}
 # QR Code Configuration
 spring.web.resources.static-locations=classpath:/static/,file:qr/
 qr.content.path=http://localhost:8080/api/v1/stores/
+
+# Initial Config User
+user.fullname=your_user_fullname
+user.password=@User1234
+user.email=your_user_email@example.com
+
+# Initial Config Admin
+admin.fullname=your_admin_fullname
+admin.password=@Admin1234
+admin.email=your_admin_email@example.com
 ```
 
 > **Note:**  

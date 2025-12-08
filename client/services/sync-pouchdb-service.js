@@ -10,6 +10,8 @@ class HybridSyncService {
     constructor() {
         this.dbProducts = null;
         this.dbStores = null;
+        this.dbAssignments = null;
+        this.dbUsers = null;
         this.isInitialized = false;
 
         console.log('[HybridSync] Servicio creado');
@@ -23,9 +25,11 @@ class HybridSyncService {
             console.log('[HybridSync] Inicializando PouchDB...');
             this.dbProducts = new PouchDB('products');
             this.dbStores = new PouchDB('stores');
+            this.dbAssignments = new PouchDB('assignments');
+            this.dbUsers = new PouchDB('users');
             this.isInitialized = true;
 
-            console.log('[HybridSync] ✅ PouchDB inicializado (productos y tiendas)');
+            console.log('[HybridSync] ✅ PouchDB inicializado (productos, tiendas, asignaciones y usuarios)');
 
             // Setup auto-sync cuando vuelva conexión
             this.setupAutoSync();
@@ -969,6 +973,37 @@ class HybridSyncService {
                     }
                 }
 
+                // ====== SINCRONIZAR ASIGNACIONES ======
+                const assignmentsResult = await this.dbAssignments.allDocs({ include_docs: true });
+                const pendingAssignments = assignmentsResult.rows
+                    .map(row => row.doc)
+                    .filter(doc => doc.syncPending === true);
+
+                console.log(`[HybridSync] 🔗 ${pendingAssignments.length} asignaciones pendientes`);
+
+                for (const doc of pendingAssignments) {
+                    try {
+                        console.log(`[HybridSync] 🔄 Sincronizando asignación...`);
+                        const response = await fetch(`${BACKEND_URL}/routes/assign`, {
+                            method: 'POST',
+                            headers: this.getHeaders(),
+                            body: JSON.stringify({
+                                userUuid: doc.userUuid,
+                                storeUuid: doc.storeUuid
+                            })
+                        });
+
+                        if (response.ok) {
+                            console.log(`[HybridSync] ✅ Asignación sincronizada`);
+                            await this.dbAssignments.remove(doc);
+                        } else {
+                            console.error(`[HybridSync] ❌ Error sincronizando asignación: HTTP ${response.status}`);
+                        }
+                    } catch (error) {
+                        console.error(`[HybridSync] ❌ Error sincronizando asignación:`, error.message);
+                    }
+                }
+
                 console.log('[HybridSync] ✅ Auto-sincronización completada');
 
                 // LIMPIAR Y REFRESCAR CACHÉ desde el backend
@@ -1074,7 +1109,9 @@ class HybridSyncService {
         try {
             await this.dbProducts.destroy();
             await this.dbStores.destroy();
-            console.log('[HybridSync] 🗑️ Bases de datos limpiadas (productos y tiendas)');
+            await this.dbAssignments.destroy();
+            await this.dbUsers.destroy();
+            console.log('[HybridSync] 🗑️ Bases de datos limpiadas (productos, tiendas, asignaciones y usuarios)');
             // Reinicializar
             await this.initialize();
         } catch (error) {

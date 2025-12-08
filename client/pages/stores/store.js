@@ -8,10 +8,11 @@ let stores = [];
 let currentStoreId = null;
 let storeModal = null;
 let deleteModal = null;
+let assignModal = null;
 let syncService = null;
 
 // Inicialización cuando carga la página
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     console.log('[Stores] 🚀 Inicializando página de tiendas...');
 
     // Inicializar servicio
@@ -20,16 +21,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Inicializar modales de Bootstrap
     storeModal = new bootstrap.Modal(document.getElementById('storeModal'));
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
 
     // Cargar tiendas (GET)
     await loadStoresTable();
 
     // Event Listeners
     document.getElementById('btnSaveStore').addEventListener('click', saveStore);
+
     document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
 
     // Limpiar formulario cuando se cierra el modal
-    document.getElementById('storeModal').addEventListener('hidden.bs.modal', function() {
+    document.getElementById('storeModal').addEventListener('hidden.bs.modal', function () {
         resetForm();
     });
 
@@ -130,8 +133,10 @@ function renderStoresTable() {
 
     let html = '';
     stores.forEach(store => {
+
         // El ID puede ser uuid (del backend) o _id (de PouchDB)
         const storeId = store.uuid || store._id;
+
         const displayName = store.name || 'Sin nombre';
 
         // Indicador si está pendiente de sincronización
@@ -152,6 +157,9 @@ function renderStoresTable() {
                     </button>
                     <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-action btn-info" onclick='assignDriver("${storeId}")' title="Asignar Repartidor">
+                        <i class="bi bi-person-plus"></i>
                     </button>
                 </td>
             </tr>
@@ -270,8 +278,8 @@ function showToast(message, type = 'info') {
 
     // Determinar color
     const bgClass = type === 'success' ? 'bg-success' :
-                    type === 'error' ? 'bg-danger' :
-                    type === 'warning' ? 'bg-warning text-dark' : 'bg-info';
+        type === 'error' ? 'bg-danger' :
+            type === 'warning' ? 'bg-warning text-dark' : 'bg-info';
 
     // Crear toast
     const toastId = 'toast-' + Date.now();
@@ -293,7 +301,7 @@ function showToast(message, type = 'info') {
     toast.show();
 
     // Eliminar después de ocultar
-    toastElement.addEventListener('hidden.bs.toast', function() {
+    toastElement.addEventListener('hidden.bs.toast', function () {
         toastElement.remove();
     });
 }

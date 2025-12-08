@@ -7,11 +7,13 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import mtzg.carlos.server.modules.users.Role;
 
-@Data
+@Getter
+@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
@@ -37,5 +39,17 @@ public class UserRegisterDto {
 
     @NotNull(message = "Role is required")
     private Role role;
+
+    public void setName(String name) {
+        this.name = name != null ? name.trim() : null;
+    }
+
+    public void setEmail(String email) {
+        this.email = email != null ? email.trim() : null;
+    }
+
+    public void setPassword(String password) {
+        this.password = password != null ? password.trim() : null;
+    }
 
 }

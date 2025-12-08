@@ -47,7 +47,7 @@ public class VisitModel {
     @Column(name = "date", nullable = false)
     private LocalDate date;
 
-    @Column(name = "photo", nullable = false)
+    @Column(name = "photo", nullable = true)
     private String photo;
 
     @Column(name = "validation", nullable = false)

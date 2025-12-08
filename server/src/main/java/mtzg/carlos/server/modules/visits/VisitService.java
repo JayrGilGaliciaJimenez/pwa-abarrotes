@@ -119,6 +119,10 @@ public class VisitService {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
             }
 
+            if (!userHasStoreInRoute(userOpt.get(), storeUuid)) {
+                return Utilities.simpleResponse(HttpStatus.FORBIDDEN, "User does not have access to this store");
+            }
+
             String photoPath = saveVisitPhoto(userOpt.get().getName(), storeOpt.get().getName(), photo, "uploads");
 
             VisitModel visit = VisitModel.builder()
@@ -174,11 +178,26 @@ public class VisitService {
             Files.createDirectories(uploadPath);
         }
 
-        String filename = "store_" + storeName + "_" + userName + "_" + System.currentTimeMillis() + "_"
+        String cleanStoreName = sanitizeName(storeName);
+        String cleanUserName = sanitizeName(userName);
+
+        String filename = "store_" + cleanStoreName + "_" + cleanUserName + "_" + System.currentTimeMillis() + "_"
                 + photo.getOriginalFilename();
         Path filePath = uploadPath.resolve(filename);
         photo.transferTo(filePath.toFile());
 
         return filePath.toString();
+    }
+
+    private String sanitizeName(String name) {
+        if (name == null)
+            return "";
+        return name.trim().replaceAll("\\s+", "_");
+    }
+
+    private boolean userHasStoreInRoute(UserModel user, UUID storeUuid) {
+        if (user.getStores() == null)
+            return false;
+        return user.getStores().stream().anyMatch(store -> store.getUuid().equals(storeUuid));
     }
 }

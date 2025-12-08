@@ -130,8 +130,9 @@ function renderProductsTable() {
 
     let html = '';
     products.forEach(product => {
-        const productId = product._id;
-        const displayId = product.uuid || productId;
+        // El ID puede ser uuid (del backend) o _id (de PouchDB)
+        const productId = product.uuid || product._id;
+        const displayId = productId;
         const shortId = displayId.substring(0, 8);
 
         // Indicador si está pendiente de sincronización
@@ -177,10 +178,9 @@ function openAddProductModal() {
 async function editProduct(productId) {
     console.log('[Products] ✏️ Editando producto:', productId);
     console.log('[Products] 📊 Total productos en array:', products.length);
-    console.log('[Products] 📋 IDs disponibles:', products.map(p => p._id));
 
-    // Buscar el producto en la lista
-    const product = products.find(p => p._id === productId);
+    // Buscar el producto por uuid o _id
+    const product = products.find(p => (p.uuid === productId || p._id === productId));
 
     if (!product) {
         console.error('[Products] ❌ Producto no encontrado. Buscando:', productId);
@@ -239,11 +239,8 @@ async function saveProduct() {
             // EDITAR producto existente (PUT)
             console.log('[Products] ✏️ Actualizando producto:', currentProductId, productData);
 
-            // Obtener el uuid real del producto
-            const product = products.find(p => p._id === currentProductId);
-            const productUuid = product.uuid || currentProductId;
-
-            result = await syncService.updateProduct(productUuid, productData);
+            // currentProductId ya es el uuid del producto
+            result = await syncService.updateProduct(currentProductId, productData);
 
             if (result.success) {
                 if (result.offline) {

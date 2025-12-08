@@ -144,14 +144,10 @@ public class UserService {
             }
             UserModel user = userOpt.get();
 
-            if (user.getStores() != null && !user.getStores().isEmpty()) {
+            if ((user.getStores() != null && !user.getStores().isEmpty()) ||
+                    (user.getVisits() != null && !user.getVisits().isEmpty())) {
                 return Utilities.simpleResponse(HttpStatus.BAD_REQUEST,
-                        "Cannot delete user associated with stores");
-            }
-
-            if (user.getVisits() != null && !user.getVisits().isEmpty()) {
-                return Utilities.simpleResponse(HttpStatus.BAD_REQUEST,
-                        "Cannot delete user associated with visits");
+                        "Cannot delete user associated with stores or visits");
             }
 
             userRepository.delete(user);

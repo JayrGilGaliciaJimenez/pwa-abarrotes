@@ -164,7 +164,7 @@ public class VisitService {
             return Utilities.simpleResponse(HttpStatus.CREATED, "Visit registered successfully");
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "An error occurred while registering the visit." + e.getMessage());
+                    "An error occurred while registering the visit: " + e.getMessage());
         }
     }
 
@@ -180,7 +180,7 @@ public class VisitService {
             return Utilities.simpleResponse(HttpStatus.OK, "Visit deleted successfully");
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "An error occurred while deleting the visit." + e.getMessage());
+                    "An error occurred while deleting the visit: " + e.getMessage());
         }
     }
 

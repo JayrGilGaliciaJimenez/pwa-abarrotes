@@ -6,6 +6,20 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Gestión de Tiendas - Sistema de Abarrotes</title>
 
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Sistema de gestión de productos y tiendas con soporte offline">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Abarrotes">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="../../manifest.json">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="../../assets/images/icon-192x192.png">
+    <link rel="apple-touch-icon" href="../../assets/images/icon-192x192.png">
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
 
@@ -168,7 +182,52 @@
         </div>
     </div>
 
+    <!-- Modal Asignar Repartidor -->
+    <div class="modal fade" id="assignModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Asignar Repartidor</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignForm">
+                        <div class="mb-3">
+                            <label for="driverSelect" class="form-label">Seleccionar Repartidor</label>
+                            <select class="form-select" id="driverSelect" required>
+                                <option value="">Seleccione un repartidor...</option>
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-cancel" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-save" id="btnSaveAssignment">Asignar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Network Status Indicator -->
+    <div id="network-status"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="store.js"></script>
+
+    <!-- PouchDB Library (Offline-First Database) -->
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.find.min.js"></script>
+
+    <!-- Properties (BASE_URL) - DEBE CARGARSE PRIMERO -->
+    <script src="../../properties.js"></script>
+
+    <!-- Hybrid Sync Service (Backend-first + PouchDB cache) -->
+    <script src="../../services/sync-pouchdb-service.js"></script>
+
+    <!-- PWA Initialization (debe cargarse primero) -->
+    <script type="module" src="../../pwa-init.js"></script>
+
+    <!-- Store JS (ahora como módulo ES6) -->
+    <script type="module" src="store.js"></script>
 </body>
 </html>

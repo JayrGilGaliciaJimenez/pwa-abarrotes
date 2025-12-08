@@ -1,263 +1,403 @@
 /**
  * Drivers Page JavaScript
- * Maneja el CRUD de repartidores con datos simulados
+ * Operaciones: GET, POST, PUT, DELETE con soporte offline (HybridSyncService)
  */
 
-// Datos simulados de repartidores
-let drivers = [
-    {
-        id: 1,
-        name: "Juan Pérez García",
-        phone: "55 1234 5678",
-        license: "LIC-001-2024",
-        status: "active"
-    },
-    {
-        id: 2,
-        name: "María López Hernández",
-        phone: "55 2345 6789",
-        license: "LIC-002-2024",
-        status: "active"
-    },
-    {
-        id: 3,
-        name: "Carlos Rodríguez Martínez",
-        phone: "55 3456 7890",
-        license: "LIC-003-2024",
-        status: "inactive"
-    },
-    {
-        id: 4,
-        name: "Ana González Ruiz",
-        phone: "55 4567 8901",
-        license: "LIC-004-2024",
-        status: "active"
-    },
-    {
-        id: 5,
-        name: "Pedro Sánchez Torres",
-        phone: "55 5678 9012",
-        license: "LIC-005-2024",
-        status: "active"
-    }
-];
-
-// Variables globales
+let drivers = [];
 let currentDriverId = null;
 let driverModal = null;
 let deleteModal = null;
+let syncService = null;
 
-// Esperar a que el DOM esté completamente cargado
-document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar modales de Bootstrap
-    driverModal = new bootstrap.Modal(document.getElementById('driverModal'));
-    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+document.addEventListener("DOMContentLoaded", async () => {
+  console.log("[Drivers] 🚚 Inicializando gestión de repartidores...");
 
-    // Cargar la tabla de repartidores
-    loadDriversTable();
+  await initializeService();
 
-    // Event Listeners
-    document.getElementById('btnAddDriver').addEventListener('click', openAddDriverModal);
-    document.getElementById('btnSaveDriver').addEventListener('click', saveDriver);
-    document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
+  driverModal = new bootstrap.Modal(document.getElementById("driverModal"));
+  deleteModal = new bootstrap.Modal(document.getElementById("deleteModal"));
 
-    // Limpiar el formulario cuando se cierra el modal
-    document.getElementById('driverModal').addEventListener('hidden.bs.modal', function() {
-        resetForm();
-    });
+  await loadDriversTable();
+
+  document
+    .getElementById("btnAddDriver")
+    .addEventListener("click", openAddDriverModal);
+  document
+    .getElementById("btnSaveDriver")
+    .addEventListener("click", saveDriver);
+  document
+    .getElementById("btnConfirmDelete")
+    .addEventListener("click", confirmDelete);
+
+  document
+    .getElementById("driverModal")
+    .addEventListener("hidden.bs.modal", resetForm);
+
+  console.log("[Drivers] ✅ Página lista");
 });
 
-/**
- * Carga la tabla de repartidores dinámicamente
- */
-function loadDriversTable() {
-    const tableBody = document.getElementById('driversTableBody');
-
-    if (drivers.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="6" class="empty-state">
-                    <i class="bi bi-truck" style="font-size: 3rem;"></i>
-                    <p class="mt-2">No hay repartidores registrados</p>
-                    <p class="text-muted">Haz clic en "Agregar Repartidor" para comenzar</p>
-                </td>
-            </tr>
-        `;
-        return;
+async function initializeService() {
+  try {
+    if (!window.hybridSyncService) {
+      throw new Error("Hybrid Sync Service no está disponible");
     }
 
-    let html = '';
-    drivers.forEach(driver => {
-        const statusClass = driver.status === 'active' ? 'status-active' : 'status-inactive';
-        const statusText = driver.status === 'active' ? 'Activo' : 'Inactivo';
+    syncService = window.hybridSyncService;
+    await syncService.initialize();
 
-        html += `
-            <tr>
-                <td>${driver.id}</td>
-                <td>${driver.name}</td>
-                <td>${driver.phone}</td>
-                <td>${driver.license}</td>
-                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                <td class="text-center">
-                    <button class="btn btn-action btn-edit" onclick="openEditDriverModal(${driver.id})" title="Editar">
-                        <i class="bi bi-pencil"></i>
-                    </button>
-                    <button class="btn btn-action btn-delete" onclick="openDeleteModal(${driver.id})" title="Eliminar">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    });
-
-    tableBody.innerHTML = html;
+    syncService.onSyncComplete = () => {
+      console.log("[Drivers] 🔄 Auto-sync completado, recargando lista");
+      loadDriversTable();
+      showToast("Repartidores sincronizados con el servidor", "success");
+    };
+  } catch (error) {
+    console.error("[Drivers] ❌ Error al inicializar servicio:", error);
+    showToast("Error al inicializar el sistema", "error");
+  }
 }
 
-/**
- * Abre el modal para agregar un nuevo repartidor
- */
+async function loadDriversTable() {
+  const tableBody = document.getElementById("driversTableBody");
+  if (!tableBody) return;
+
+  tableBody.innerHTML = `
+    <tr>
+      <td colspan="5" class="empty-state">
+        <i class="bi bi-arrow-repeat" style="font-size: 3rem;"></i>
+        <p class="mt-2">Cargando repartidores...</p>
+      </td>
+    </tr>
+  `;
+
+  try {
+    console.log("[Drivers] 👥 Cargando repartidores...");
+    drivers = await syncService.getDeliveryDrivers();
+    window.drivers = drivers;
+    console.log(`[Drivers] ✅ ${drivers.length} repartidores obtenidos`);
+    renderDriversTable();
+  } catch (error) {
+    console.error("[Drivers] ❌ Error al cargar repartidores:", error);
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="5" class="empty-state">
+          <i class="bi bi-exclamation-triangle" style="font-size: 3rem; color: #dc3545;"></i>
+          <p class="mt-2">Error al cargar repartidores</p>
+          <p class="text-muted">${escapeHtml(error.message)}</p>
+          <button class="btn btn-outline-secondary mt-2" onclick="loadDriversTable()">
+            <i class="bi bi-arrow-clockwise me-2"></i>Reintentar
+          </button>
+        </td>
+      </tr>
+    `;
+  }
+}
+
+function renderDriversTable() {
+  const tableBody = document.getElementById("driversTableBody");
+  if (!tableBody) return;
+
+  if (!drivers || drivers.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="5" class="empty-state">
+          <i class="bi bi-truck" style="font-size: 3rem;"></i>
+          <p class="mt-2">No hay repartidores registrados</p>
+          <p class="text-muted">Haz clic en "Agregar Repartidor" para comenzar</p>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  let html = "";
+  drivers.forEach((driver) => {
+    const driverId = driver.uuid || driver._id;
+    const displayId = driverId || "sin-id";
+    const shortId = displayId.substring(0, 8);
+    const storeNames = (driver.stores || [])
+      .map((store) => store.name)
+      .filter(Boolean);
+    const storesContent =
+      storeNames.length === 0
+        ? '<span class="text-muted">Sin asignar</span>'
+        : `<div class="store-pills">${storeNames
+            .map(
+              (name) => `<span class="store-pill">${escapeHtml(name)}</span>`,
+            )
+            .join("")}</div>`;
+
+    const isPending = driver.syncPending === true;
+    const syncBadge = isPending
+      ? '<span class="badge bg-warning text-dark ms-1" title="Pendiente de sincronización">⏳</span>'
+      : "";
+
+    html += `
+      <tr ${isPending ? 'style="opacity: 0.75;"' : ""}>
+        <td title="${escapeHtml(displayId)}">${escapeHtml(shortId)}...${syncBadge}</td>
+        <td>${escapeHtml(driver.name || "Sin nombre")}</td>
+        <td>${escapeHtml(driver.email || "Sin correo")}</td>
+        <td>${storesContent}</td>
+        <td class="text-center">
+          <button class="btn btn-action btn-edit" onclick="editDriver('${driverId}')" title="Editar">
+            <i class="bi bi-pencil"></i>
+          </button>
+          <button class="btn btn-action btn-delete" onclick="deleteDriver('${driverId}')" title="Eliminar">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+
+  tableBody.innerHTML = html;
+}
+
 function openAddDriverModal() {
-    currentDriverId = null;
-    document.getElementById('driverModalLabel').textContent = 'Agregar Repartidor';
-    resetForm();
+  resetForm();
+  driverModal.show();
 }
 
-/**
- * Abre el modal para editar un repartidor existente
- * @param {number} driverId - ID del repartidor a editar
- */
-function openEditDriverModal(driverId) {
-    currentDriverId = driverId;
-    const driver = drivers.find(d => d.id === driverId);
+function togglePasswordFields(show) {
+  const passwordGroup = document.getElementById("passwordGroup");
+  const passwordConfirmGroup = document.getElementById("passwordConfirmGroup");
+  const passwordInput = document.getElementById("driverPassword");
+  const passwordConfirmInput = document.getElementById("driverPasswordConfirm");
 
-    if (!driver) {
-        alert('Repartidor no encontrado');
-        return;
-    }
+  if (!passwordGroup || !passwordConfirmGroup) return;
 
-    // Cambiar el título del modal
-    document.getElementById('driverModalLabel').textContent = 'Editar Repartidor';
-
-    // Llenar el formulario con los datos del repartidor
-    document.getElementById('driverId').value = driver.id;
-    document.getElementById('driverName').value = driver.name;
-    document.getElementById('driverPhone').value = driver.phone;
-    document.getElementById('driverLicense').value = driver.license;
-    document.getElementById('driverStatus').value = driver.status;
-
-    // Abrir el modal
-    driverModal.show();
+  if (show) {
+    passwordGroup.classList.remove("d-none");
+    passwordConfirmGroup.classList.remove("d-none");
+    passwordInput.required = true;
+    passwordConfirmInput.required = true;
+  } else {
+    passwordGroup.classList.add("d-none");
+    passwordConfirmGroup.classList.add("d-none");
+    passwordInput.required = false;
+    passwordConfirmInput.required = false;
+    passwordInput.value = "";
+    passwordConfirmInput.value = "";
+  }
 }
 
-/**
- * Guarda el repartidor (crear o editar)
- */
-function saveDriver() {
-    const form = document.getElementById('driverForm');
+function getDriverById(driverId) {
+  return drivers.find(
+    (driver) => driver.uuid === driverId || driver._id === driverId,
+  );
+}
 
-    // Validar el formulario
-    if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-    }
+function editDriver(driverId) {
+  const driver = getDriverById(driverId);
+  if (!driver) {
+    showToast("Repartidor no encontrado", "error");
+    return;
+  }
 
-    // Obtener los valores del formulario
-    const name = document.getElementById('driverName').value.trim();
-    const phone = document.getElementById('driverPhone').value.trim();
-    const license = document.getElementById('driverLicense').value.trim();
-    const status = document.getElementById('driverStatus').value;
+  currentDriverId = driverId;
+  document.getElementById("driverModalLabel").textContent = "Editar Repartidor";
+  document.getElementById("driverName").value = driver.name || "";
+  const emailInput = document.getElementById("driverEmail");
+  emailInput.value = driver.email || "";
+  emailInput.disabled = true;
 
-    if (currentDriverId === null) {
-        // Crear nuevo repartidor
-        const newDriver = {
-            id: drivers.length > 0 ? Math.max(...drivers.map(d => d.id)) + 1 : 1,
-            name: name,
-            phone: phone,
-            license: license,
-            status: status
-        };
-        drivers.push(newDriver);
-        console.log('Repartidor creado:', newDriver);
+  togglePasswordFields(false);
+  driverModal.show();
+}
+
+async function saveDriver() {
+  const form = document.getElementById("driverForm");
+  const btnSave = document.getElementById("btnSaveDriver");
+
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const isEdit = Boolean(currentDriverId);
+  const name = document.getElementById("driverName").value.trim();
+  const email = document.getElementById("driverEmail").value.trim();
+  const password = document.getElementById("driverPassword").value;
+  const passwordConfirm = document.getElementById(
+    "driverPasswordConfirm",
+  ).value;
+
+  if (!isEdit && password !== passwordConfirm) {
+    showToast("Las contraseñas no coinciden", "error");
+    return;
+  }
+
+  const payload = isEdit
+    ? { name, role: "USER" }
+    : { name, email, password, role: "USER" };
+
+  btnSave.disabled = true;
+  btnSave.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Guardando...';
+
+  try {
+    let result;
+    if (isEdit) {
+      console.log("[Drivers] ✏️ Actualizando repartidor:", currentDriverId);
+      result = await syncService.updateDriver(currentDriverId, payload);
     } else {
-        // Editar repartidor existente
-        const driverIndex = drivers.findIndex(d => d.id === currentDriverId);
-        if (driverIndex !== -1) {
-            drivers[driverIndex] = {
-                ...drivers[driverIndex],
-                name: name,
-                phone: phone,
-                license: license,
-                status: status
-            };
-            console.log('Repartidor actualizado:', drivers[driverIndex]);
-        }
+      console.log("[Drivers] ➕ Creando repartidor:", payload);
+      result = await syncService.createDriver(payload);
     }
 
-    // Recargar la tabla
-    loadDriversTable();
+    if (result.success) {
+      if (result.offline) {
+        showToast(
+          isEdit
+            ? "⚠️ Cambios guardados localmente, se sincronizarán al reconectar"
+            : "⚠️ Repartidor guardado localmente, se sincronizará al reconectar",
+          "warning",
+        );
+      } else {
+        showToast(
+          isEdit
+            ? "✅ Repartidor actualizado correctamente"
+            : "✅ Repartidor guardado correctamente",
+          "success",
+        );
+      }
 
-    // Cerrar el modal
-    driverModal.hide();
-
-    // Mostrar mensaje de éxito
-    showToast(currentDriverId === null ? 'Repartidor agregado exitosamente' : 'Repartidor actualizado exitosamente');
+      await loadDriversTable();
+      driverModal.hide();
+    } else {
+      throw new Error("Error al guardar repartidor");
+    }
+  } catch (error) {
+    console.error("[Drivers] ❌ Error al guardar repartidor:", error);
+    showToast(`Error al guardar repartidor: ${error.message}`, "error");
+  } finally {
+    btnSave.disabled = false;
+    btnSave.innerHTML = "Guardar";
+  }
 }
 
-/**
- * Abre el modal de confirmación para eliminar un repartidor
- * @param {number} driverId - ID del repartidor a eliminar
- */
-function openDeleteModal(driverId) {
-    const driver = drivers.find(d => d.id === driverId);
+function deleteDriver(driverId) {
+  const driver = getDriverById(driverId);
+  if (!driver) {
+    showToast("Repartidor no encontrado", "error");
+    return;
+  }
 
-    if (!driver) {
-        alert('Repartidor no encontrado');
-        return;
-    }
-
-    currentDriverId = driverId;
-    document.getElementById('deleteDriverName').textContent = driver.name;
-    deleteModal.show();
+  currentDriverId = driverId;
+  document.getElementById("deleteDriverName").textContent =
+    driver.name || driver.email || driverId;
+  deleteModal.show();
 }
 
-/**
- * Confirma y ejecuta la eliminación del repartidor
- */
-function confirmDelete() {
-    const driverIndex = drivers.findIndex(d => d.id === currentDriverId);
+async function confirmDelete() {
+  if (!currentDriverId) {
+    showToast("No hay repartidor seleccionado", "error");
+    return;
+  }
 
-    if (driverIndex !== -1) {
-        const deletedDriver = drivers.splice(driverIndex, 1)[0];
-        console.log('Repartidor eliminado:', deletedDriver);
+  const btnDelete = document.getElementById("btnConfirmDelete");
+  btnDelete.disabled = true;
+  btnDelete.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Eliminando...';
 
-        // Recargar la tabla
-        loadDriversTable();
+  try {
+    console.log("[Drivers] 🗑️ Eliminando repartidor:", currentDriverId);
+    const result = await syncService.deleteDriver(currentDriverId);
 
-        // Cerrar el modal
-        deleteModal.hide();
+    if (result.success) {
+      if (result.offline) {
+        showToast(
+          "⚠️ Repartidor marcado para eliminar, se sincronizará al reconectar",
+          "warning",
+        );
+      } else {
+        showToast("✅ Repartidor eliminado correctamente", "success");
+      }
 
-        // Mostrar mensaje de éxito
-        showToast('Repartidor eliminado exitosamente');
+      await loadDriversTable();
+      deleteModal.hide();
+    } else {
+      throw new Error("Error al eliminar repartidor");
     }
-
+  } catch (error) {
+    console.error("[Drivers] ❌ Error al eliminar repartidor:", error);
+    showToast(`Error al eliminar repartidor: ${error.message}`, "error");
+  } finally {
+    btnDelete.disabled = false;
+    btnDelete.innerHTML = "Eliminar";
     currentDriverId = null;
+  }
 }
 
-/**
- * Resetea el formulario del repartidor
- */
 function resetForm() {
-    document.getElementById('driverForm').reset();
-    document.getElementById('driverId').value = '';
-    document.getElementById('driverStatus').value = 'active';
-    currentDriverId = null;
+  const form = document.getElementById("driverForm");
+  if (form) {
+    form.reset();
+  }
+  const hiddenId = document.getElementById("driverId");
+  if (hiddenId) {
+    hiddenId.value = "";
+  }
+  const emailInput = document.getElementById("driverEmail");
+  if (emailInput) {
+    emailInput.disabled = false;
+  }
+  togglePasswordFields(true);
+  currentDriverId = null;
+  document.getElementById("driverModalLabel").textContent =
+    "Agregar Repartidor";
 }
 
-/**
- * Muestra un mensaje toast (simulado con console.log)
- * @param {string} message - Mensaje a mostrar
- */
-function showToast(message) {
-    console.log('Toast:', message);
-    // En producción, aquí se podría usar Bootstrap Toast o una librería de notificaciones
+function escapeHtml(text) {
+  if (!text) return "";
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
 }
+
+function showToast(message, type = "info") {
+  let toastContainer = document.getElementById("toastContainer");
+  if (!toastContainer) {
+    toastContainer = document.createElement("div");
+    toastContainer.id = "toastContainer";
+    toastContainer.className =
+      "toast-container position-fixed bottom-0 end-0 p-3";
+    toastContainer.style.zIndex = "1100";
+    document.body.appendChild(toastContainer);
+  }
+
+  const bgClass =
+    type === "success"
+      ? "bg-success"
+      : type === "error"
+        ? "bg-danger"
+        : type === "warning"
+          ? "bg-warning text-dark"
+          : "bg-info";
+
+  const toastId = `toast-${Date.now()}`;
+  const toastHtml = `
+    <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">
+          ${escapeHtml(message)}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  `;
+
+  toastContainer.insertAdjacentHTML("beforeend", toastHtml);
+
+  const toastElement = document.getElementById(toastId);
+  const toast = new bootstrap.Toast(toastElement, { delay: 4000 });
+  toast.show();
+
+  toastElement.addEventListener("hidden.bs.toast", () => {
+    toastElement.remove();
+  });
+}
+
+window.loadDriversTable = loadDriversTable;
+window.editDriver = editDriver;
+window.deleteDriver = deleteDriver;
+window.drivers = drivers;
+
+console.log("[Drivers] 📋 Módulo cargado (GET, POST, PUT, DELETE)");

@@ -74,7 +74,7 @@ public class VisitService {
     @Transactional(readOnly = true)
     public ResponseEntity<Object> getVisitByUuid(UUID uuid) {
         try {
-            Optional<VisitModel> visitOpt = visitRepository.findByUuid(uuid);
+            Optional<VisitModel> visitOpt = visitRepository.findByUuidWithOrders(uuid);
             if (visitOpt.isEmpty()) {
                 return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Visit not found");
             }

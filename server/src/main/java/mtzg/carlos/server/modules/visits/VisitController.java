@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -36,7 +37,7 @@ public class VisitController {
             @RequestParam("userUuid") UUID userUuid,
             @RequestParam("storeUuid") UUID storeUuid,
             @RequestParam("validation") boolean validation,
-            @RequestParam("ordersJson") String ordersJson,
+            @RequestParam("ordersJson") @NotBlank(message = "ordersJson cannot be blank") String ordersJson,
             @RequestParam("photo") MultipartFile photo) {
         return visitService.registerVisit(userUuid, storeUuid, validation, ordersJson, photo);
     }

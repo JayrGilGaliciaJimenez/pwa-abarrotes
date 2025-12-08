@@ -1,14 +1,19 @@
 package mtzg.carlos.server.modules.users;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.jwt.JwtService;
 import mtzg.carlos.server.modules.stores.dto.StoreResponseDto;
+import mtzg.carlos.server.modules.users.dto.UserRegisterDto;
 import mtzg.carlos.server.modules.users.dto.UserResponseDto;
 import mtzg.carlos.server.utils.Utilities;
 
@@ -17,6 +22,8 @@ import mtzg.carlos.server.utils.Utilities;
 public class UserService {
 
     private final IUserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     @Transactional(readOnly = true)
     public ResponseEntity<Object> getAllUsers() {
@@ -108,6 +115,23 @@ public class UserService {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while retrieving admin users: " + e.getMessage());
         }
+    }
+
+    public ResponseEntity<Object> register(UserRegisterDto request) {
+        Optional<UserModel> existingUser = userRepository.findByEmail(request.getEmail());
+        if (existingUser.isPresent()) {
+            return Utilities.simpleResponse(HttpStatus.CONFLICT, "Unable to complete registration");
+        }
+        var user = UserModel.builder()
+                .uuid(UUID.randomUUID())
+                .name(request.getName())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(request.getRole())
+                .build();
+        userRepository.save(user);
+        var jwtToken = jwtService.generateToken(user);
+        return Utilities.authResponse(HttpStatus.OK, "User registered successfully", jwtToken);
     }
 
 }

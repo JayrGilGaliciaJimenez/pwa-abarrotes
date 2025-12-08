@@ -2,12 +2,14 @@ package mtzg.carlos.server.modules.users.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import mtzg.carlos.server.modules.users.Role;
 
 @Data
 @Builder
@@ -32,5 +34,8 @@ public class UserRegisterDto {
     @Pattern(regexp = NO_ANGLE_BRACKETS_REGEX, message = NO_ANGLE_BRACKETS_MESSAGE)
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d]).+$", message = "Password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character")
     private String password;
+
+    @NotNull(message = "Role is required")
+    private Role role;
 
 }

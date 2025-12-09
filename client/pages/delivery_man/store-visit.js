@@ -93,19 +93,19 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+ const storedData = sessionStorage.getItem('currentStore');
 
+        if (storedData) {
+                var storeObj = JSON.parse(storedData);
+                console.log('tienda actual', storeObj);
+                console.log('uuid tienda actual', storeObj.uuid);
+        }
     /**
      * Inicializa la página
      */
     function init() {
         // Obtener datos de la tienda desde sessionStorage
-        const storedData = sessionStorage.getItem('currentStore');
-
-        if (storedData) {
-                const storeObj = JSON.parse(storedData);
-                console.log('tienda actual', storeObj);
-                console.log('uuid tienda actual', storeObj.uuid);
-        }
+       
         
 
         if (!storedData) {
@@ -615,7 +615,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${BASE_URL}/products`, {
+            const response = await fetch(`${BASE_URL}/products/findByStore/${storeObj.uuid}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,

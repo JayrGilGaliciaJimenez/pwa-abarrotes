@@ -859,7 +859,7 @@ class HybridSyncService {
         console.log("[HybridSync] 🌐 Cargando usuarios desde BACKEND...");
 
         // 1. GET al backend
-        const response = await fetch(`${BACKEND_URL}/users`, {
+        const response = await fetch(`${BACKEND_URL}/users/delivery`, {
           method: "GET",
           headers: this.getHeaders(),
         });

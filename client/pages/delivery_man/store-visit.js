@@ -428,6 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     /**
      * Valida la ubicación y registra la visita (después de confirmar foto)
+     * Con soporte para Background Sync cuando no hay conexión
      */
     async function validateLocationAndRegister() {
         // Deshabilitar botón mientras procesa
@@ -500,18 +501,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
             });
 
-            // Crear FormData para enviar al servidor
-            const formData = new FormData();
-            formData.append('userUuid', userUuid);
-            formData.append('storeUuid', storeData.uuid || storeData._id || storeData.id);
-            formData.append('validation', true);
-            formData.append('ordersJson', JSON.stringify(ordersJson));
-
-            // Agregar la foto si existe
-            if (capturedPhotoData) {
-                const photoFile = base64ToFile(capturedPhotoData, 'visit-photo-' + Date.now() + '.jpg');
-                formData.append('photo', photoFile);
-            }
+            // Preparar datos para el request
+            const requestUrl = `${BASE_URL}/visits`;
+            const formFields = {
+                userUuid: userUuid,
+                storeUuid: storeData.uuid || storeData._id || storeData.id,
+                validation: 'true',
+                ordersJson: JSON.stringify(ordersJson)
+            };
 
             console.log('Enviando visita:', {
                 userUuid: userUuid,
@@ -520,47 +517,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 hasPhoto: !!capturedPhotoData
             });
 
-            // Enviar al servidor
-            const response = await fetch(`${BASE_URL}/visits`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                    // NO incluir Content-Type, el navegador lo pone automáticamente con boundary para FormData
-                },
-                body: formData
-            });
+            // Intentar enviar al servidor
+            try {
+                // Crear FormData para enviar al servidor
+                const formData = new FormData();
+                formData.append('userUuid', userUuid);
+                formData.append('storeUuid', storeData.uuid || storeData._id || storeData.id);
+                formData.append('validation', true);
+                formData.append('ordersJson', JSON.stringify(ordersJson));
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || 'Error al registrar la visita');
+                // Agregar la foto si existe
+                if (capturedPhotoData) {
+                    const photoFile = base64ToFile(capturedPhotoData, 'visit-photo-' + Date.now() + '.jpg');
+                    formData.append('photo', photoFile);
+                }
+
+                const response = await fetch(requestUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.message || 'Error al registrar la visita');
+                }
+
+                const result = await response.json();
+                console.log('Visita registrada:', result);
+
+                // Limpiar datos de sessionStorage
+                sessionStorage.removeItem('currentStore');
+
+                // Mostrar mensaje de éxito
+                showVisitSuccess();
+
+            } catch (fetchError) {
+                // Si falla por falta de conexión, guardar para sync
+                if (!navigator.onLine || fetchError.name === 'TypeError') {
+                    console.log('[PWA] Sin conexión, guardando visita para sync offline...');
+                    await saveVisitForOfflineSync(requestUrl, formFields, token);
+                } else {
+                    throw fetchError;
+                }
             }
-
-            const result = await response.json();
-            console.log('Visita registrada:', result);
-
-            // Limpiar datos de sessionStorage
-            sessionStorage.removeItem('currentStore');
-
-            // Mostrar mensaje de éxito
-            registerVisitBtn.classList.remove('btn-primary');
-            registerVisitBtn.classList.add('btn-success');
-            registerVisitBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="me-2" viewBox="0 0 16 16">
-                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-                </svg>
-                Visita Registrada
-            `;
-
-            // Limpiar foto capturada
-            capturedPhotoData = null;
-
-            // Mostrar toast de éxito
-            showToast('Visita registrada correctamente');
-
-            // Redirigir al dashboard después de un momento
-            setTimeout(function() {
-                window.location.href = './dashboard.html';
-            }, 2000);
 
         } catch (error) {
             console.error('Error al registrar visita:', error);
@@ -572,6 +574,139 @@ document.addEventListener('DOMContentLoaded', function() {
 
             alert(error.message || 'Error al registrar la visita. Intenta de nuevo.');
         }
+    }
+
+    /**
+     * Guarda la visita para sincronización offline usando Background Sync
+     * @param {string} url - URL del endpoint
+     * @param {object} formFields - Campos del formulario
+     * @param {string} token - Token de autorización
+     */
+    async function saveVisitForOfflineSync(url, formFields, token) {
+        try {
+            // Preparar datos de la foto para almacenamiento
+            let photoData = null;
+            if (capturedPhotoData) {
+                // Extraer base64 sin el prefijo data:image/...
+                const matches = capturedPhotoData.match(/^data:(.+);base64,(.+)$/);
+                if (matches) {
+                    photoData = {
+                        type: matches[1],
+                        data: matches[2],
+                        name: 'visit-photo-' + Date.now() + '.jpg'
+                    };
+                }
+            }
+
+            // Crear payload para el Service Worker
+            const payload = {
+                url: url,
+                formFields: formFields,
+                authorization: `Bearer ${token}`,
+                photoData: photoData
+            };
+
+            // Enviar al Service Worker usando MessageChannel para respuesta
+            const messageChannel = new MessageChannel();
+            const swResponse = await new Promise(function(resolve, reject) {
+                messageChannel.port1.onmessage = function(event) {
+                    if (event.data.success) {
+                        resolve(event.data);
+                    } else {
+                        reject(new Error(event.data.error || 'Error guardando solicitud'));
+                    }
+                };
+
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage(
+                        { type: 'SAVE_PENDING_REQUEST', payload: payload },
+                        [messageChannel.port2]
+                    );
+                } else {
+                    reject(new Error('Service Worker no disponible'));
+                }
+
+                // Timeout de 5 segundos
+                setTimeout(function() {
+                    reject(new Error('Timeout guardando solicitud'));
+                }, 5000);
+            });
+
+            console.log('[PWA] Solicitud guardada con ID:', swResponse.id);
+
+            // Registrar Background Sync si está soportado
+            if ('serviceWorker' in navigator && 'sync' in window.SyncManager.prototype) {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('sync-visits');
+                console.log('[PWA] Background Sync registrado: sync-visits');
+            }
+
+            // Limpiar datos
+            sessionStorage.removeItem('currentStore');
+            capturedPhotoData = null;
+
+            // Mostrar mensaje de éxito offline
+            showVisitPendingSuccess();
+
+        } catch (error) {
+            console.error('[PWA] Error guardando para sync offline:', error);
+            throw new Error('No se pudo guardar la visita para sincronización. ' + error.message);
+        }
+    }
+
+    /**
+     * Muestra mensaje de éxito cuando la visita se registra online
+     */
+    function showVisitSuccess() {
+        // Limpiar datos de sessionStorage
+        sessionStorage.removeItem('currentStore');
+
+        // Mostrar mensaje de éxito
+        registerVisitBtn.classList.remove('btn-primary');
+        registerVisitBtn.classList.add('btn-success');
+        registerVisitBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="me-2" viewBox="0 0 16 16">
+                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+            </svg>
+            Visita Registrada
+        `;
+
+        // Limpiar foto capturada
+        capturedPhotoData = null;
+
+        // Mostrar toast de éxito
+        showToast('Visita registrada correctamente');
+
+        // Redirigir al dashboard después de un momento
+        setTimeout(function() {
+            window.location.href = './dashboard.html';
+        }, 2000);
+    }
+
+    /**
+     * Muestra mensaje de éxito cuando la visita se guarda para sync offline
+     */
+    function showVisitPendingSuccess() {
+        // Mostrar mensaje de pendiente
+        registerVisitBtn.classList.remove('btn-primary');
+        registerVisitBtn.classList.add('btn-warning');
+        registerVisitBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="me-2" viewBox="0 0 16 16">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+            </svg>
+            Guardado (Pendiente de Sincronizar)
+        `;
+
+        // Limpiar foto capturada
+        capturedPhotoData = null;
+
+        // Mostrar toast informativo
+        showToast('Sin conexión. La visita se enviará automáticamente cuando haya internet.');
+
+        // Redirigir al dashboard después de un momento
+        setTimeout(function() {
+            window.location.href = './dashboard.html';
+        }, 3000);
     }
 
     // Event listeners para el modal de cámara

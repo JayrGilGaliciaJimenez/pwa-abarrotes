@@ -5,13 +5,169 @@
  * - Cache-first para assets estáticos del App Shell (HTML, CSS, JS)
  * - Hybrid Sync Service maneja sincronización Backend-first + PouchDB cache
  * - Auto-sync cuando se recupera conexión
+ * - Background Sync para POST requests (visitas) cuando hay fallo de red
  *
  * NOTA: Este Service Worker solo cachea archivos estáticos.
  * Los datos (productos, tiendas) son manejados por el Hybrid Sync Service.
  */
 
-const CACHE_NAME = 'abarrotes-hybrid-v1'; // Nueva versión para Hybrid Sync
+const CACHE_NAME = 'abarrotes-hybrid-v2'; // Nueva versión para Background Sync
 const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v1';
+const PENDING_REQUESTS_STORE = 'pending-requests';
+const DB_NAME = 'pwa-offline-requests';
+const DB_VERSION = 1;
+
+/**
+ * =====================================================
+ * IndexedDB HELPERS - Para guardar solicitudes pendientes
+ * =====================================================
+ */
+
+/**
+ * Abre la base de datos IndexedDB
+ * @returns {Promise<IDBDatabase>}
+ */
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+        request.onerror = () => {
+            console.error('[SW] ❌ Error abriendo IndexedDB:', request.error);
+            reject(request.error);
+        };
+
+        request.onsuccess = () => {
+            resolve(request.result);
+        };
+
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(PENDING_REQUESTS_STORE)) {
+                const store = db.createObjectStore(PENDING_REQUESTS_STORE, {
+                    keyPath: 'id',
+                    autoIncrement: true
+                });
+                store.createIndex('timestamp', 'timestamp', { unique: false });
+                store.createIndex('url', 'url', { unique: false });
+                console.log('[SW] ✅ Object store creado:', PENDING_REQUESTS_STORE);
+            }
+        };
+    });
+}
+
+/**
+ * Guarda una solicitud pendiente en IndexedDB
+ * @param {object} requestData - Datos de la solicitud a guardar
+ * @returns {Promise<number>} - ID de la solicitud guardada
+ */
+async function savePendingRequest(requestData) {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([PENDING_REQUESTS_STORE], 'readwrite');
+            const store = transaction.objectStore(PENDING_REQUESTS_STORE);
+
+            const data = {
+                ...requestData,
+                timestamp: Date.now()
+            };
+
+            const request = store.add(data);
+
+            request.onsuccess = () => {
+                console.log('[SW] ✅ Solicitud pendiente guardada con ID:', request.result);
+                resolve(request.result);
+            };
+
+            request.onerror = () => {
+                console.error('[SW] ❌ Error guardando solicitud pendiente:', request.error);
+                reject(request.error);
+            };
+
+            transaction.oncomplete = () => {
+                db.close();
+            };
+        });
+    } catch (error) {
+        console.error('[SW] ❌ Error en savePendingRequest:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtiene todas las solicitudes pendientes
+ * @returns {Promise<Array>}
+ */
+async function getPendingRequests() {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([PENDING_REQUESTS_STORE], 'readonly');
+            const store = transaction.objectStore(PENDING_REQUESTS_STORE);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                resolve(request.result || []);
+            };
+
+            request.onerror = () => {
+                console.error('[SW] ❌ Error obteniendo solicitudes pendientes:', request.error);
+                reject(request.error);
+            };
+
+            transaction.oncomplete = () => {
+                db.close();
+            };
+        });
+    } catch (error) {
+        console.error('[SW] ❌ Error en getPendingRequests:', error);
+        return [];
+    }
+}
+
+/**
+ * Elimina una solicitud pendiente por ID
+ * @param {number} id - ID de la solicitud a eliminar
+ * @returns {Promise<void>}
+ */
+async function deletePendingRequest(id) {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([PENDING_REQUESTS_STORE], 'readwrite');
+            const store = transaction.objectStore(PENDING_REQUESTS_STORE);
+            const request = store.delete(id);
+
+            request.onsuccess = () => {
+                console.log('[SW] ✅ Solicitud pendiente eliminada:', id);
+                resolve();
+            };
+
+            request.onerror = () => {
+                console.error('[SW] ❌ Error eliminando solicitud pendiente:', request.error);
+                reject(request.error);
+            };
+
+            transaction.oncomplete = () => {
+                db.close();
+            };
+        });
+    } catch (error) {
+        console.error('[SW] ❌ Error en deletePendingRequest:', error);
+        throw error;
+    }
+}
+
+/**
+ * Notifica a todos los clientes sobre un evento
+ * @param {object} message - Mensaje a enviar a los clientes
+ */
+async function notifyClients(message) {
+    const allClients = await self.clients.matchAll({ includeUncontrolled: true });
+    allClients.forEach(client => {
+        client.postMessage(message);
+    });
+}
 
 /**
  * APP SHELL - Assets críticos que deben cachearse en install
@@ -298,10 +454,109 @@ function updateCacheInBackground(request) {
 }
 
 /**
- * NOTA: Background Sync eliminado
- * PouchDB maneja la sincronización de datos internamente.
- * No es necesario un evento de sync en el Service Worker.
+ * =====================================================
+ * BACKGROUND SYNC - Para solicitudes POST offline
+ * =====================================================
  */
+
+/**
+ * Evento sync - Se dispara cuando el navegador detecta conexión
+ * Procesa las solicitudes pendientes guardadas en IndexedDB
+ */
+self.addEventListener('sync', (event) => {
+    console.log('[SW] 🔄 Evento sync disparado:', event.tag);
+
+    if (event.tag === 'sync-visits') {
+        event.waitUntil(syncPendingVisits());
+    }
+});
+
+/**
+ * Sincroniza todas las visitas pendientes
+ * @returns {Promise<void>}
+ */
+async function syncPendingVisits() {
+    console.log('[SW] 🔄 Iniciando sincronización de visitas pendientes...');
+
+    try {
+        const pendingRequests = await getPendingRequests();
+        console.log('[SW] 📋 Solicitudes pendientes encontradas:', pendingRequests.length);
+
+        if (pendingRequests.length === 0) {
+            console.log('[SW] ✅ No hay solicitudes pendientes');
+            return;
+        }
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const pendingRequest of pendingRequests) {
+            try {
+                console.log('[SW] 📤 Enviando solicitud pendiente:', pendingRequest.id, pendingRequest.url);
+
+                // Reconstruir el FormData desde los datos guardados
+                const formData = new FormData();
+
+                // Agregar campos de texto
+                if (pendingRequest.formFields) {
+                    for (const [key, value] of Object.entries(pendingRequest.formFields)) {
+                        formData.append(key, value);
+                    }
+                }
+
+                // Agregar foto si existe (convertir de base64 a Blob)
+                if (pendingRequest.photoData) {
+                    const photoBlob = await base64ToBlob(pendingRequest.photoData.data, pendingRequest.photoData.type);
+                    formData.append('photo', photoBlob, pendingRequest.photoData.name);
+                }
+
+                const response = await fetch(pendingRequest.url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': pendingRequest.authorization
+                    },
+                    body: formData
+                });
+
+                if (response.ok) {
+                    console.log('[SW] ✅ Solicitud enviada exitosamente:', pendingRequest.id);
+                    await deletePendingRequest(pendingRequest.id);
+                    successCount++;
+                } else {
+                    console.error('[SW] ❌ Error en respuesta del servidor:', response.status);
+                    failCount++;
+                }
+            } catch (error) {
+                console.error('[SW] ❌ Error enviando solicitud pendiente:', pendingRequest.id, error);
+                failCount++;
+            }
+        }
+
+        // Notificar a los clientes sobre el resultado
+        await notifyClients({
+            type: 'SYNC_COMPLETE',
+            successCount,
+            failCount,
+            message: `Sincronización completada: ${successCount} exitosas, ${failCount} fallidas`
+        });
+
+        console.log(`[SW] ✅ Sincronización completada: ${successCount} exitosas, ${failCount} fallidas`);
+    } catch (error) {
+        console.error('[SW] ❌ Error en sincronización:', error);
+        throw error;
+    }
+}
+
+/**
+ * Convierte base64 a Blob
+ * @param {string} base64Data - Datos en base64
+ * @param {string} contentType - Tipo MIME
+ * @returns {Promise<Blob>}
+ */
+async function base64ToBlob(base64Data, contentType) {
+    const response = await fetch(`data:${contentType};base64,${base64Data}`);
+    return response.blob();
+}
 
 /**
  * Manejo de mensajes desde los clientes
@@ -325,6 +580,42 @@ self.addEventListener('message', (event) => {
                     event.ports[0].postMessage({ success: true });
                 }
             })
+        );
+    }
+
+    // Guardar solicitud pendiente para sincronización offline
+    if (event.data && event.data.type === 'SAVE_PENDING_REQUEST') {
+        event.waitUntil(
+            savePendingRequest(event.data.payload)
+                .then((id) => {
+                    console.log('[SW] ✅ Solicitud guardada para sync offline:', id);
+                    if (event.ports[0]) {
+                        event.ports[0].postMessage({ success: true, id });
+                    }
+                })
+                .catch((error) => {
+                    console.error('[SW] ❌ Error guardando solicitud:', error);
+                    if (event.ports[0]) {
+                        event.ports[0].postMessage({ success: false, error: error.message });
+                    }
+                })
+        );
+    }
+
+    // Forzar sincronización manual
+    if (event.data && event.data.type === 'FORCE_SYNC') {
+        event.waitUntil(
+            syncPendingVisits()
+                .then(() => {
+                    if (event.ports[0]) {
+                        event.ports[0].postMessage({ success: true });
+                    }
+                })
+                .catch((error) => {
+                    if (event.ports[0]) {
+                        event.ports[0].postMessage({ success: false, error: error.message });
+                    }
+                })
         );
     }
 });

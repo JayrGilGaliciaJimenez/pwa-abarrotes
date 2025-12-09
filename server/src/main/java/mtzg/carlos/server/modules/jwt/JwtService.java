@@ -4,6 +4,7 @@ import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -31,9 +32,10 @@ public class JwtService {
         return claimsResolver.apply(claims);
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserDetails userDetails, UUID uuid) {
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("role", userDetails.getAuthorities());
+        extraClaims.put("uuid", uuid);
         return generateToken(extraClaims, userDetails);
     }
 

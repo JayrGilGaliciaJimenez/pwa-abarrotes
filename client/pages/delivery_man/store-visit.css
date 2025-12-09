@@ -184,3 +184,193 @@ body {
         width: 100%;
     }
 }
+/* Estilos para el modal de productos */
+.product-item-modal {
+    transition: background-color 0.2s;
+}
+
+.product-item-modal:hover {
+    background-color: #f8f9fa;
+}
+
+.product-checkbox:checked + label {
+    font-weight: 600;
+}
+
+.product-checkbox:checked + label .product-name {
+    color: #0d6efd;
+}
+
+/* Toast personalizado */
+.toast-container {
+    z-index: 1060;
+}
+
+/* Estado disabled mejorado */
+.btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* Contador en botón del modal */
+#confirmAddProducts span {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 2px 8px;
+    margin-right: 4px;
+}
+
+/* ========================================
+   Estilos para el modal de cámara
+   ======================================== */
+
+/* Contenedor de cámara */
+.camera-container {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #000;
+    overflow: hidden;
+}
+
+.camera-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Overlay de la cámara */
+.camera-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.camera-frame {
+    width: 85%;
+    max-width: 350px;
+    aspect-ratio: 4/3;
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+}
+
+/* Controles de cámara */
+.camera-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+}
+
+.btn-capture {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 4px solid rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    padding: 0;
+}
+
+.btn-capture svg {
+    fill: #dc3545;
+    transition: fill 0.15s ease;
+}
+
+.btn-capture:hover {
+    transform: scale(1.05);
+    background-color: #f8f9fa;
+}
+
+.btn-capture:active {
+    transform: scale(0.95);
+    background-color: #e9ecef;
+}
+
+/* Contenedor de preview */
+.preview-container {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #000;
+    overflow: hidden;
+}
+
+.captured-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: #000;
+}
+
+/* Controles de preview */
+.preview-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+}
+
+.preview-controls .btn {
+    min-width: 140px;
+}
+
+/* Estado de error de cámara */
+.camera-error {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+}
+
+.camera-error h5 {
+    color: #333;
+}
+
+.camera-error p {
+    max-width: 280px;
+}
+
+/* Modal fullscreen ajustes */
+#cameraModal .modal-content {
+    background-color: #000;
+}
+
+#cameraModal .modal-header {
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #333;
+    color: #fff;
+}
+
+#cameraModal .modal-header .btn-close {
+    filter: invert(1);
+}
+
+#cameraModal .modal-body {
+    min-height: 0;
+}

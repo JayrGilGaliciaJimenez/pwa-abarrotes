@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     // Event Listeners
     document.getElementById('btnSaveStore').addEventListener('click', saveStore);
+    document.getElementById('btnSaveAssignment').addEventListener('click', saveAssignment);
 
     document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
 
@@ -230,6 +231,90 @@ async function saveStore() {
     }
 }
 
+async function assignDriver(storeId) {
+    // Imprimir en consola
+    console.log(`[Stores] Asignar repartidor a tienda ID: ${storeId}`);
+
+    currentStoreId = storeId;
+    const select = document.getElementById('driverSelect');
+
+    // Mostrar estado de carga
+    select.innerHTML = '<option value="">Cargando repartidores...</option>';
+    select.disabled = true;
+
+    assignModal.show();
+
+    try {
+        // Obtener usuarios desde el servicio
+        const users = await syncService.getAllUsers();
+
+        // Filtrar solo usuarios con rol 'USER' (repartidores)
+        // const drivers = users.filter(user => user.role === 'USER');
+
+        // Poblar select
+        select.innerHTML = '<option value="">Seleccione un repartidor...</option>';
+
+        if (users.length === 0) {
+            select.innerHTML += '<option value="" disabled>No hay repartidores disponibles</option>';
+        } else {
+            users.forEach(driver => {
+                // Usar uuid como valor
+                select.innerHTML += `<option value="${driver.uuid}">${driver.name} ${driver.lastname || ''}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('[Stores] Error al cargar repartidores:', error);
+        select.innerHTML = '<option value="">Error al cargar</option>';
+        showToast('Error al cargar lista de repartidores', 'error');
+    } finally {
+        select.disabled = false;
+    }
+}
+
+async function saveAssignment() {
+    const driverId = document.getElementById('driverSelect').value;
+    const btnSave = document.getElementById('btnSaveAssignment');
+
+    if (!driverId) {
+        showToast('Por favor seleccione un repartidor', 'error');
+        return;
+    }
+
+    // Obtener nombre del repartidor seleccionado para el mensaje
+    const select = document.getElementById('driverSelect');
+    const driverName = select.options[select.selectedIndex].text;
+
+    // Deshabilitar botón
+    btnSave.disabled = true;
+    btnSave.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Asignando...';
+
+    try {
+        console.log(`[Stores] Asignando repartidor ${driverName} (${driverId}) a tienda ${currentStoreId}`);
+
+        // Llamada al servicio de sincronización
+        const result = await syncService.assignDriver(driverId, currentStoreId);
+
+        if (result.success) {
+            if (result.offline) {
+                showToast('⚠️ Asignación guardada localmente (se sincronizará cuando haya conexión)', 'warning');
+            } else {
+                showToast(`✅ Repartidor ${driverName} asignado correctamente`, 'success');
+            }
+            assignModal.hide();
+        } else {
+            throw new Error('Error al asignar repartidor');
+        }
+    } catch (error) {
+        console.error('[Stores] ❌ Error al asignar:', error);
+        showToast('Error al asignar repartidor: ' + error.message, 'error');
+    } finally {
+        // Rehabilitar botón
+        btnSave.disabled = false;
+        btnSave.innerHTML = 'Asignar';
+    }
+}
+
+
 /**
  * Resetear formulario
  */
@@ -387,6 +472,7 @@ async function confirmDelete() {
 window.loadStoresTable = loadStoresTable;
 window.editStore = editStore;
 window.deleteStore = deleteStore;
+window.assignDriver = assignDriver;
 window.stores = stores; // Para debugging
 
 console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, DELETE)');

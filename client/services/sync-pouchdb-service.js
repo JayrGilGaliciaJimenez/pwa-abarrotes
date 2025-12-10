@@ -382,13 +382,17 @@ class HybridSyncService {
         existingDoc = { _id: productUuid };
       }
 
+      // IMPORTANTE: Si el documento ya tiene syncOperation: 'create', mantenerlo
+      // Esto evita que productos creados offline que se modifican se conviertan en UPDATE
+      const syncOperation = existingDoc.syncOperation === "create" ? "create" : "update";
+
       const doc = {
         _id: productUuid,
         _rev: existingDoc._rev,
         ...productData,
         uuid: productUuid,
         syncPending: true,
-        syncOperation: "update",
+        syncOperation: syncOperation,
         productUuid: productUuid, // Para saber qué producto actualizar
         syncTimestamp: Date.now(),
         updatedAt: new Date().toISOString(),
@@ -396,7 +400,7 @@ class HybridSyncService {
 
       await this.dbProducts.put(doc);
       console.log(
-        "[HybridSync] ✅ Producto actualizado OFFLINE (pendiente de sincronización)",
+        `[HybridSync] ✅ Producto actualizado OFFLINE (pendiente de sincronización como ${syncOperation})`,
       );
 
       return { success: true, product: doc, offline: true };
@@ -728,6 +732,125 @@ class HybridSyncService {
       return { success: true, store: doc, offline: true };
     } catch (error) {
       console.error("[HybridSync] ❌ Error al guardar offline:", error);
+      throw error;
+    }
+  }
+
+  // ==========================================
+  // PUT STORES (ACTUALIZAR TIENDAS)
+  // ==========================================
+
+  /**
+   * Actualizar tienda existente
+   * - Con internet: PUT al backend inmediatamente
+   * - Sin internet: Actualizar en PouchDB con flag pendiente
+   */
+  async updateStore(storeUuid, storeData) {
+    console.log(
+      "[HybridSync] ✏️ Actualizando tienda:",
+      storeUuid,
+      storeData,
+    );
+    console.log(
+      "[HybridSync] Estado de conexión:",
+      navigator.onLine ? "🟢 Online" : "🔴 Offline",
+    );
+
+    if (navigator.onLine) {
+      try {
+        console.log("[HybridSync] 🌐 Enviando actualización al BACKEND...");
+
+        // 1. PUT al backend
+        const response = await fetch(`${BACKEND_URL}/stores/${storeUuid}`, {
+          method: "PUT",
+          headers: this.getHeaders(),
+          body: JSON.stringify(storeData),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        const updatedStore = responseData.data;
+        console.log(
+          "[HybridSync] ✅ Tienda actualizada en backend:",
+          updatedStore.uuid,
+        );
+
+        // 2. Actualizar en PouchDB con datos del backend
+        try {
+          const existingDoc = await this.dbStores.get(storeUuid);
+          await this.dbStores.put({
+            _id: updatedStore.uuid,
+            _rev: existingDoc._rev,
+            ...updatedStore,
+            cachedAt: new Date().toISOString(),
+          });
+          console.log("[HybridSync] ✅ Tienda actualizada en caché");
+        } catch (error) {
+          console.warn(
+            "[HybridSync] ⚠️ No se pudo actualizar en caché:",
+            error.message,
+          );
+        }
+
+        return { success: true, store: updatedStore };
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Error al actualizar en backend, guardando localmente:",
+          error.message,
+        );
+        // Si falla, actualizar localmente con flag pendiente
+        return await this.updateStoreOffline(storeUuid, storeData);
+      }
+    } else {
+      // Sin internet, actualizar localmente
+      console.log("[HybridSync] 📴 SIN INTERNET - Actualizando localmente...");
+      return await this.updateStoreOffline(storeUuid, storeData);
+    }
+  }
+
+  /**
+   * Actualizar tienda offline (pendiente de sincronización)
+   */
+  async updateStoreOffline(storeUuid, storeData) {
+    try {
+      // Intentar obtener el documento existente
+      let existingDoc;
+      try {
+        existingDoc = await this.dbStores.get(storeUuid);
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Tienda no encontrada en caché, creando nuevo documento",
+        );
+        existingDoc = { _id: storeUuid };
+      }
+
+      // IMPORTANTE: Si el documento ya tiene syncOperation: 'create', mantenerlo
+      // Esto evita que tiendas creadas offline que se modifican se conviertan en UPDATE
+      const syncOperation = existingDoc.syncOperation === "create" ? "create" : "update";
+
+      const doc = {
+        _id: storeUuid,
+        _rev: existingDoc._rev,
+        ...storeData,
+        uuid: storeUuid,
+        syncPending: true,
+        syncOperation: syncOperation,
+        storeUuid: storeUuid, // Para saber qué tienda actualizar
+        syncTimestamp: Date.now(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await this.dbStores.put(doc);
+      console.log(
+        `[HybridSync] ✅ Tienda actualizada OFFLINE (pendiente de sincronización como ${syncOperation})`,
+      );
+
+      return { success: true, store: doc, offline: true };
+    } catch (error) {
+      console.error("[HybridSync] ❌ Error al actualizar offline:", error);
       throw error;
     }
   }
@@ -1120,6 +1243,10 @@ class HybridSyncService {
         };
       }
 
+      // IMPORTANTE: Si el documento ya tiene syncOperation: 'create', mantenerlo
+      // Esto evita que repartidores creados offline que se modifican se conviertan en UPDATE
+      const syncOperation = existingDoc.syncOperation === "create" ? "create" : "update";
+
       const doc = {
         ...existingDoc,
         ...driverData,
@@ -1127,15 +1254,14 @@ class HybridSyncService {
         _rev: existingDoc._rev,
         uuid: existingDoc.uuid || driverUuid,
         syncPending: true,
-        syncOperation:
-          existingDoc.syncOperation === "create" ? "create" : "update",
+        syncOperation: syncOperation,
         syncTimestamp: Date.now(),
         updatedAt: new Date().toISOString(),
       };
 
       await this.dbUsers.put(doc);
       console.log(
-        "[HybridSync] ✅ Repartidor actualizado OFFLINE (pendiente de sincronización)",
+        `[HybridSync] ✅ Repartidor actualizado OFFLINE (pendiente de sincronización como ${syncOperation})`,
       );
       return { success: true, driver: doc, offline: true };
     } catch (error) {
@@ -1277,6 +1403,15 @@ class HybridSyncService {
         console.log(
           `[HybridSync] 📦 ${pendingProducts.length} productos pendientes de sincronización`,
         );
+
+        // CORRECCIÓN: Convertir UPDATEs con ID temporal a CREATE
+        // Esto maneja el caso de productos creados offline y luego modificados offline
+        pendingProducts.forEach(doc => {
+          if (doc.syncOperation === "update" && doc._id && doc._id.startsWith("temp_")) {
+            console.log(`[HybridSync] 🔄 Convirtiendo UPDATE con ID temporal a CREATE: ${doc._id}`);
+            doc.syncOperation = "create";
+          }
+        });
 
         // Separar por operación: create vs update vs delete
         const productsToCreate = pendingProducts.filter(
@@ -1434,6 +1569,15 @@ class HybridSyncService {
           `[HybridSync] 🏪 ${pendingStores.length} tiendas pendientes de sincronización`,
         );
 
+        // CORRECCIÓN: Convertir UPDATEs con ID temporal a CREATE
+        // Esto maneja el caso de tiendas creadas offline y luego modificadas offline
+        pendingStores.forEach(doc => {
+          if (doc.syncOperation === "update" && doc._id && doc._id.startsWith("temp_")) {
+            console.log(`[HybridSync] 🔄 Convirtiendo UPDATE con ID temporal a CREATE: ${doc._id}`);
+            doc.syncOperation = "create";
+          }
+        });
+
         // Separar por operación: create vs update vs delete
         const storesToCreate = pendingStores.filter(
           (doc) => doc.syncOperation === "create",
@@ -1585,6 +1729,15 @@ class HybridSyncService {
         console.log(
           `[HybridSync] 👥 ${pendingUsers.length} repartidores pendientes de sincronización`,
         );
+
+        // CORRECCIÓN: Convertir UPDATEs con ID temporal a CREATE
+        // Esto maneja el caso de repartidores creados offline y luego modificados offline
+        pendingUsers.forEach(doc => {
+          if (doc.syncOperation === "update" && doc._id && doc._id.startsWith("temp_")) {
+            console.log(`[HybridSync] 🔄 Convirtiendo UPDATE con ID temporal a CREATE: ${doc._id}`);
+            doc.syncOperation = "create";
+          }
+        });
 
         const usersToCreate = pendingUsers.filter(
           (doc) => doc.syncOperation === "create",

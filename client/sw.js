@@ -11,6 +11,7 @@
  * Los datos (productos, tiendas) son manejados por el Hybrid Sync Service.
  */
 
+
 const CACHE_NAME = 'abarrotes-hybrid-v2'; // Nueva versión para Background Sync
 const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v1';
 const PENDING_REQUESTS_STORE = 'pending-requests';
@@ -169,6 +170,7 @@ async function notifyClients(message) {
     });
 }
 
+
 /**
  * APP SHELL - Assets críticos que deben cachearse en install
  * Estos archivos permiten que la app funcione completamente offline
@@ -191,6 +193,8 @@ const APP_SHELL = [
     // JavaScript - Servicios PWA (CRÍTICOS para offline con Hybrid Sync)
     '/services/sync-pouchdb-service.js',
     '/components/network-status.js',
+    '/components/admin-navbar.js',
+    '/utils/auth-guard.js',
     '/pwa-init.js',
 
     // JavaScript - Páginas
@@ -204,6 +208,7 @@ const APP_SHELL = [
 
     // CSS - Archivos de estilo
     '/assets/bootstrap/css/bootstrap.css',
+    '/components/admin-navbar.css',
     '/pages/login/login.css',
     '/pages/delivery_man/dashboard.css',
 
@@ -294,6 +299,13 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
+    // EXCLUIR peticiones de autenticación del Service Worker
+    // Las peticiones de login NO deben ser interceptadas ni cacheadas
+    if (url.pathname.includes('/api/v1/auth/')) {
+        // Dejar que la petición pase directamente sin intervención del SW
+        return;
+    }
+
     // Estrategia para peticiones de API (Network First)
     if (url.pathname.includes('/api/')) {
         event.respondWith(networkFirstStrategy(request));
@@ -334,7 +346,7 @@ async function networkFirstStrategy(request) {
         const networkResponse = await Promise.race([
             fetch(request),
             new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Network timeout')), 5000)
+                setTimeout(() => reject(new Error('Network timeout')), 10000)
             )
         ]);
 

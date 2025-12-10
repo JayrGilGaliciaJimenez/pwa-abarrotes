@@ -142,7 +142,7 @@ function renderStoresTable() {
         // Indicador si está pendiente de sincronización
         const isPending = store.syncPending === true;
         const syncBadge = isPending
-            ? '<span class="badge bg-warning text-dark ms-1" title="Pendiente de sincronización">⏳</span>'
+            ? '<span class="badge bg-warning text-dark ms-1" title="Pendiente de sincronización">Pendiente</span>'
             : '';
 
         html += `
@@ -208,7 +208,7 @@ async function saveStore() {
             if (result.offline) {
                 //showToast('⚠️ Tienda guardada localmente (se sincronizará cuando haya conexión)', 'warning');
             } else {
-                showToast('✅ Tienda guardada exitosamente', 'success');
+                showToast('Tienda guardada exitosamente', 'success');
             }
 
             // Recargar tabla
@@ -358,9 +358,9 @@ async function confirmDelete() {
 
         if (result.success) {
             if (result.offline) {
-                showToast('⚠️ Tienda marcada para eliminar (se sincronizará cuando haya conexión)', 'warning');
+                //showToast('⚠️ Tienda marcada para eliminar (se sincronizará cuando haya conexión)', 'warning');
             } else {
-                showToast('✅ Tienda eliminada exitosamente', 'success');
+                showToast('Tienda eliminada exitosamente', 'success');
             }
 
             // Recargar tabla

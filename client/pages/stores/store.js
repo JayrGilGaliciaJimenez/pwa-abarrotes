@@ -1,6 +1,7 @@
 /**
  * Stores Page JavaScript
- * Operaciones: GET, POST, DELETE (CREATE, DELETE)
+ * Operaciones: GET, POST, PUT, DELETE (CREATE, READ, UPDATE, DELETE)
+ * Soporte completo offline/online con Hybrid Sync Service
  */
 
 // Variables globales
@@ -152,7 +153,7 @@ function renderStoresTable() {
                 <td>${store.latitude}</td>
                 <td>${store.longitude}</td>
                 <td class="text-center">
-                    <button class="btn btn-action btn-edit" onclick="editStore('${storeId}')" title="Editar" disabled>
+                    <button class="btn btn-action btn-edit" onclick="editStore('${storeId}')" title="Editar">
                         <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar">
@@ -170,10 +171,11 @@ function renderStoresTable() {
 }
 
 /**
- * Guardar tienda (SOLO POST - crear nueva)
+ * Guardar tienda (POST para crear, PUT para editar)
  */
 async function saveStore() {
     const btnSave = document.getElementById('btnSaveStore');
+    const isEditing = currentStoreId !== null;
 
     // Obtener datos del formulario
     const storeData = {
@@ -199,16 +201,32 @@ async function saveStore() {
     btnSave.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Guardando...';
 
     try {
-        console.log('[Stores] ➕ Guardando tienda:', storeData);
+        let result;
 
-        // POST al backend (o guardar offline si no hay conexión)
-        const result = await syncService.createStore(storeData);
+        if (isEditing) {
+            // PUT - Actualizar tienda existente
+            console.log('[Stores] ✏️ Actualizando tienda:', currentStoreId, storeData);
+            result = await updateStore(currentStoreId, storeData);
+        } else {
+            // POST - Crear nueva tienda
+            console.log('[Stores] ➕ Creando tienda:', storeData);
+            result = await syncService.createStore(storeData);
+        }
 
         if (result.success) {
+            // Mostrar mensaje apropiado según si fue online u offline
             if (result.offline) {
-                //showToast('⚠️ Tienda guardada localmente (se sincronizará cuando haya conexión)', 'warning');
+                // showToast(
+                //     isEditing
+                //         ? '⚠️ Tienda actualizada localmente (se sincronizará cuando haya conexión)'
+                //         : '⚠️ Tienda creada localmente (se sincronizará cuando haya conexión)',
+                //     'warning'
+                // );
             } else {
-                showToast('Tienda guardada exitosamente', 'success');
+                showToast(
+                    isEditing ? 'Tienda actualizada exitosamente' : 'Tienda creada exitosamente',
+                    'success'
+                );
             }
 
             // Recargar tabla
@@ -227,6 +245,31 @@ async function saveStore() {
         // Rehabilitar botón
         btnSave.disabled = false;
         btnSave.innerHTML = 'Guardar';
+    }
+}
+
+/**
+ * Actualizar tienda existente (PUT)
+ * - Con internet: PUT al backend + cachea en PouchDB
+ * - Sin internet: Actualiza en PouchDB con flag pendiente
+ */
+async function updateStore(uuid, storeData) {
+    try {
+        console.log('[Stores] ✏️ Actualizando tienda:', uuid, storeData);
+
+        // Usar Hybrid Sync Service para manejar online/offline
+        const result = await syncService.updateStore(uuid, storeData);
+
+        if (result.success) {
+            console.log('[Stores] ✅ Tienda actualizada exitosamente');
+            return result;
+        } else {
+            throw new Error('Error al actualizar tienda');
+        }
+
+    } catch (error) {
+        console.error('[Stores] ❌ Error al actualizar tienda:', error);
+        throw error;
     }
 }
 
@@ -306,9 +349,36 @@ function showToast(message, type = 'info') {
     });
 }
 
-// Funciones placeholders para editar/eliminar (NO IMPLEMENTADAS AÚN)
+/**
+ * Abrir modal para editar tienda
+ * Carga los datos actuales de la tienda en el formulario
+ */
 function editStore(id) {
-    showToast('Editar tienda aún no implementado', 'info');
+    console.log('[Stores] ✏️ Editando tienda:', id);
+
+    // Buscar la tienda por uuid o _id
+    const store = stores.find(s => (s.uuid === id || s._id === id));
+
+    if (!store) {
+        showToast('Tienda no encontrada', 'error');
+        return;
+    }
+
+    // Guardar el ID para saber que estamos editando
+    currentStoreId = id;
+
+    // Cambiar el título del modal
+    document.getElementById('storeModalLabel').textContent = 'Editar Tienda';
+
+    // Cargar datos en el formulario
+    document.getElementById('storeUuid').value = id;
+    document.getElementById('storeName').value = store.name || '';
+    document.getElementById('storeAddress').value = store.address || '';
+    document.getElementById('storeLat').value = store.latitude || '';
+    document.getElementById('storeLng').value = store.longitude || '';
+
+    // Mostrar el modal
+    storeModal.show();
 }
 
 /**
@@ -389,4 +459,4 @@ window.editStore = editStore;
 window.deleteStore = deleteStore;
 window.stores = stores; // Para debugging
 
-console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, DELETE)');
+console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, PUT, DELETE) con soporte offline/online');

@@ -733,6 +733,121 @@ class HybridSyncService {
   }
 
   // ==========================================
+  // PUT STORES (ACTUALIZAR TIENDAS)
+  // ==========================================
+
+  /**
+   * Actualizar tienda existente
+   * - Con internet: PUT al backend inmediatamente
+   * - Sin internet: Actualizar en PouchDB con flag pendiente
+   */
+  async updateStore(storeUuid, storeData) {
+    console.log(
+      "[HybridSync] ✏️ Actualizando tienda:",
+      storeUuid,
+      storeData,
+    );
+    console.log(
+      "[HybridSync] Estado de conexión:",
+      navigator.onLine ? "🟢 Online" : "🔴 Offline",
+    );
+
+    if (navigator.onLine) {
+      try {
+        console.log("[HybridSync] 🌐 Enviando actualización al BACKEND...");
+
+        // 1. PUT al backend
+        const response = await fetch(`${BACKEND_URL}/stores/${storeUuid}`, {
+          method: "PUT",
+          headers: this.getHeaders(),
+          body: JSON.stringify(storeData),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        const updatedStore = responseData.data;
+        console.log(
+          "[HybridSync] ✅ Tienda actualizada en backend:",
+          updatedStore.uuid,
+        );
+
+        // 2. Actualizar en PouchDB con datos del backend
+        try {
+          const existingDoc = await this.dbStores.get(storeUuid);
+          await this.dbStores.put({
+            _id: updatedStore.uuid,
+            _rev: existingDoc._rev,
+            ...updatedStore,
+            cachedAt: new Date().toISOString(),
+          });
+          console.log("[HybridSync] ✅ Tienda actualizada en caché");
+        } catch (error) {
+          console.warn(
+            "[HybridSync] ⚠️ No se pudo actualizar en caché:",
+            error.message,
+          );
+        }
+
+        return { success: true, store: updatedStore };
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Error al actualizar en backend, guardando localmente:",
+          error.message,
+        );
+        // Si falla, actualizar localmente con flag pendiente
+        return await this.updateStoreOffline(storeUuid, storeData);
+      }
+    } else {
+      // Sin internet, actualizar localmente
+      console.log("[HybridSync] 📴 SIN INTERNET - Actualizando localmente...");
+      return await this.updateStoreOffline(storeUuid, storeData);
+    }
+  }
+
+  /**
+   * Actualizar tienda offline (pendiente de sincronización)
+   */
+  async updateStoreOffline(storeUuid, storeData) {
+    try {
+      // Intentar obtener el documento existente
+      let existingDoc;
+      try {
+        existingDoc = await this.dbStores.get(storeUuid);
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Tienda no encontrada en caché, creando nuevo documento",
+        );
+        existingDoc = { _id: storeUuid };
+      }
+
+      const doc = {
+        _id: storeUuid,
+        _rev: existingDoc._rev,
+        ...storeData,
+        uuid: storeUuid,
+        syncPending: true,
+        syncOperation: "update",
+        storeUuid: storeUuid, // Para saber qué tienda actualizar
+        syncTimestamp: Date.now(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await this.dbStores.put(doc);
+      console.log(
+        "[HybridSync] ✅ Tienda actualizada OFFLINE (pendiente de sincronización)",
+      );
+
+      return { success: true, store: doc, offline: true };
+    } catch (error) {
+      console.error("[HybridSync] ❌ Error al actualizar offline:", error);
+      throw error;
+    }
+  }
+
+  // ==========================================
   // DELETE STORES (ELIMINAR TIENDAS)
   // ==========================================
 

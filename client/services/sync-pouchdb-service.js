@@ -382,13 +382,17 @@ class HybridSyncService {
         existingDoc = { _id: productUuid };
       }
 
+      // IMPORTANTE: Si el documento ya tiene syncOperation: 'create', mantenerlo
+      // Esto evita que productos creados offline que se modifican se conviertan en UPDATE
+      const syncOperation = existingDoc.syncOperation === "create" ? "create" : "update";
+
       const doc = {
         _id: productUuid,
         _rev: existingDoc._rev,
         ...productData,
         uuid: productUuid,
         syncPending: true,
-        syncOperation: "update",
+        syncOperation: syncOperation,
         productUuid: productUuid, // Para saber qué producto actualizar
         syncTimestamp: Date.now(),
         updatedAt: new Date().toISOString(),
@@ -396,7 +400,7 @@ class HybridSyncService {
 
       await this.dbProducts.put(doc);
       console.log(
-        "[HybridSync] ✅ Producto actualizado OFFLINE (pendiente de sincronización)",
+        `[HybridSync] ✅ Producto actualizado OFFLINE (pendiente de sincronización como ${syncOperation})`,
       );
 
       return { success: true, product: doc, offline: true };
@@ -823,13 +827,17 @@ class HybridSyncService {
         existingDoc = { _id: storeUuid };
       }
 
+      // IMPORTANTE: Si el documento ya tiene syncOperation: 'create', mantenerlo
+      // Esto evita que tiendas creadas offline que se modifican se conviertan en UPDATE
+      const syncOperation = existingDoc.syncOperation === "create" ? "create" : "update";
+
       const doc = {
         _id: storeUuid,
         _rev: existingDoc._rev,
         ...storeData,
         uuid: storeUuid,
         syncPending: true,
-        syncOperation: "update",
+        syncOperation: syncOperation,
         storeUuid: storeUuid, // Para saber qué tienda actualizar
         syncTimestamp: Date.now(),
         updatedAt: new Date().toISOString(),
@@ -837,7 +845,7 @@ class HybridSyncService {
 
       await this.dbStores.put(doc);
       console.log(
-        "[HybridSync] ✅ Tienda actualizada OFFLINE (pendiente de sincronización)",
+        `[HybridSync] ✅ Tienda actualizada OFFLINE (pendiente de sincronización como ${syncOperation})`,
       );
 
       return { success: true, store: doc, offline: true };
@@ -1235,6 +1243,10 @@ class HybridSyncService {
         };
       }
 
+      // IMPORTANTE: Si el documento ya tiene syncOperation: 'create', mantenerlo
+      // Esto evita que repartidores creados offline que se modifican se conviertan en UPDATE
+      const syncOperation = existingDoc.syncOperation === "create" ? "create" : "update";
+
       const doc = {
         ...existingDoc,
         ...driverData,
@@ -1242,15 +1254,14 @@ class HybridSyncService {
         _rev: existingDoc._rev,
         uuid: existingDoc.uuid || driverUuid,
         syncPending: true,
-        syncOperation:
-          existingDoc.syncOperation === "create" ? "create" : "update",
+        syncOperation: syncOperation,
         syncTimestamp: Date.now(),
         updatedAt: new Date().toISOString(),
       };
 
       await this.dbUsers.put(doc);
       console.log(
-        "[HybridSync] ✅ Repartidor actualizado OFFLINE (pendiente de sincronización)",
+        `[HybridSync] ✅ Repartidor actualizado OFFLINE (pendiente de sincronización como ${syncOperation})`,
       );
       return { success: true, driver: doc, offline: true };
     } catch (error) {
@@ -1392,6 +1403,15 @@ class HybridSyncService {
         console.log(
           `[HybridSync] 📦 ${pendingProducts.length} productos pendientes de sincronización`,
         );
+
+        // CORRECCIÓN: Convertir UPDATEs con ID temporal a CREATE
+        // Esto maneja el caso de productos creados offline y luego modificados offline
+        pendingProducts.forEach(doc => {
+          if (doc.syncOperation === "update" && doc._id && doc._id.startsWith("temp_")) {
+            console.log(`[HybridSync] 🔄 Convirtiendo UPDATE con ID temporal a CREATE: ${doc._id}`);
+            doc.syncOperation = "create";
+          }
+        });
 
         // Separar por operación: create vs update vs delete
         const productsToCreate = pendingProducts.filter(
@@ -1549,6 +1569,15 @@ class HybridSyncService {
           `[HybridSync] 🏪 ${pendingStores.length} tiendas pendientes de sincronización`,
         );
 
+        // CORRECCIÓN: Convertir UPDATEs con ID temporal a CREATE
+        // Esto maneja el caso de tiendas creadas offline y luego modificadas offline
+        pendingStores.forEach(doc => {
+          if (doc.syncOperation === "update" && doc._id && doc._id.startsWith("temp_")) {
+            console.log(`[HybridSync] 🔄 Convirtiendo UPDATE con ID temporal a CREATE: ${doc._id}`);
+            doc.syncOperation = "create";
+          }
+        });
+
         // Separar por operación: create vs update vs delete
         const storesToCreate = pendingStores.filter(
           (doc) => doc.syncOperation === "create",
@@ -1700,6 +1729,15 @@ class HybridSyncService {
         console.log(
           `[HybridSync] 👥 ${pendingUsers.length} repartidores pendientes de sincronización`,
         );
+
+        // CORRECCIÓN: Convertir UPDATEs con ID temporal a CREATE
+        // Esto maneja el caso de repartidores creados offline y luego modificados offline
+        pendingUsers.forEach(doc => {
+          if (doc.syncOperation === "update" && doc._id && doc._id.startsWith("temp_")) {
+            console.log(`[HybridSync] 🔄 Convirtiendo UPDATE con ID temporal a CREATE: ${doc._id}`);
+            doc.syncOperation = "create";
+          }
+        });
 
         const usersToCreate = pendingUsers.filter(
           (doc) => doc.syncOperation === "create",

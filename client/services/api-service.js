@@ -11,7 +11,9 @@
 
 import dbManager from './db-manager.js';
 
-const BASE_URL = 'http://localhost:82/api/v1';
+const BASE_URL = window.BASE_URL || "http://localhost:82/api/v1";
+
+//const BASE_URL = 'http://localhost:82/api/v1';
 
 // Estado de conectividad
 let isOnline = navigator.onLine;

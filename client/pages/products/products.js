@@ -139,7 +139,7 @@ function renderProductsTable() {
         // Indicador si está pendiente de sincronización
         const isPending = product.syncPending === true;
         const syncBadge = isPending
-            ? '<span class="badge bg-warning text-dark ms-1" title="Pendiente de sincronización">⏳</span>'
+            ? '<span class="badge bg-warning text-dark ms-1" title="Pendiente de sincronización">Pendiente</span>'
             : '';
 
         html += `
@@ -245,9 +245,9 @@ async function saveProduct() {
 
             if (result.success) {
                 if (result.offline) {
-                    showToast('⚠️ Producto actualizado localmente (se sincronizará cuando haya conexión)', 'warning');
+                    //showToast('⚠️ Producto actualizado localmente (se sincronizará cuando haya conexión)', 'warning');
                 } else {
-                    showToast('✅ Producto actualizado exitosamente', 'success');
+                    showToast('Producto actualizado exitosamente', 'success');
                 }
             }
 
@@ -259,9 +259,9 @@ async function saveProduct() {
 
             if (result.success) {
                 if (result.offline) {
-                    showToast('⚠️ Producto guardado localmente (se sincronizará cuando haya conexión)', 'warning');
+                    //showToast('⚠️ Producto guardado localmente (se sincronizará cuando haya conexión)', 'warning');
                 } else {
-                    showToast('✅ Producto guardado exitosamente', 'success');
+                    showToast('Producto guardado exitosamente', 'success');
                 }
             }
         }
@@ -396,9 +396,9 @@ async function confirmDelete() {
 
         if (result.success) {
             if (result.offline) {
-                showToast('⚠️ Producto marcado para eliminar (se sincronizará cuando haya conexión)', 'warning');
+                //showToast('⚠️ Producto marcado para eliminar (se sincronizará cuando haya conexión)', 'warning');
             } else {
-                showToast('✅ Producto eliminado exitosamente', 'success');
+                showToast('Producto eliminado exitosamente', 'success');
             }
 
             // Recargar tabla
@@ -411,7 +411,7 @@ async function confirmDelete() {
         }
 
     } catch (error) {
-        console.error('[Products] ❌ Error al eliminar producto:', error);
+        console.error('[Products] Error al eliminar producto:', error);
         showToast('Error al eliminar producto: ' + error.message, 'error');
     } finally {
         // Rehabilitar botón

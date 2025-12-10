@@ -128,7 +128,7 @@ function renderDriversTable() {
 
     const isPending = driver.syncPending === true;
     const syncBadge = isPending
-      ? '<span class="badge bg-warning text-dark ms-1" title="Pendiente de sincronización">⏳</span>'
+      ? '<span class="badge bg-warning text-dark ms-1" title="Pendiente de sincronización">Pendiente</span>'
       : "";
 
     html += `
@@ -254,8 +254,8 @@ async function saveDriver() {
       } else {
         showToast(
           isEdit
-            ? "✅ Repartidor actualizado correctamente"
-            : "✅ Repartidor guardado correctamente",
+            ? "Repartidor actualizado correctamente"
+            : "Repartidor guardado correctamente",
           "success",
         );
       }
@@ -308,7 +308,7 @@ async function confirmDelete() {
           "warning",
         );
       } else {
-        showToast("✅ Repartidor eliminado correctamente", "success");
+        showToast("Repartidor eliminado correctamente", "success");
       }
 
       await loadDriversTable();

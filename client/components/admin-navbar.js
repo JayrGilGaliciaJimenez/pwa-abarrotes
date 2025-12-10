@@ -246,15 +246,17 @@ class AdminNavbar {
     }
 
     handleLogout() {
-        if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-            // Limpiar localStorage
-            localStorage.removeItem('userSession');
-            localStorage.removeItem('userRole');
+        // Limpiar datos de sesión
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
 
-            // Redireccionar al login
-            window.location.href = '../login/login.html';
-        }
+        setTimeout(function() {
+            window.location.href = '../../index.html';
+        }, 1000);
     }
+
+   
+
 }
 
 // Inicializar navbar automáticamente

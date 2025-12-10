@@ -206,7 +206,7 @@ async function saveStore() {
 
         if (result.success) {
             if (result.offline) {
-                showToast('⚠️ Tienda guardada localmente (se sincronizará cuando haya conexión)', 'warning');
+                //showToast('⚠️ Tienda guardada localmente (se sincronizará cuando haya conexión)', 'warning');
             } else {
                 showToast('✅ Tienda guardada exitosamente', 'success');
             }

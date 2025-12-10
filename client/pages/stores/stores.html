@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Gestión de Tiendas - Sistema de Abarrotes</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Sistema de gestión de productos y tiendas con soporte offline">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Abarrotes">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="../../manifest.json">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="../../assets/images/icon-192x192.png">
+    <link rel="apple-touch-icon" href="../../assets/images/icon-192x192.png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+    <!-- Admin Navbar Styles -->
+    <link rel="stylesheet" href="../../components/admin-navbar.css">
+
+    <style>
+        body { background: #f5f5f5; min-height: 100vh; }
+        .content-container { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+        .header-section {
+            background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+            padding: 1.5rem; margin-bottom: 2rem;
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+        }
+        .page-title { color: #212529; font-weight: 500; margin: 0; font-size: 1.75rem; }
+        .btn-add {
+            background: #212529; border: none; color: white;
+            padding: 0.5rem 1.25rem; transition: background 0.2s;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .btn-add:hover { background: #343a40; color: white; }
+
+        @media (max-width: 576px) {
+            .content-container { padding: 0.5rem; }
+            .header-section { flex-direction: column; align-items: stretch; padding: 1rem; }
+            .page-title { font-size: 1.5rem; text-align: center; margin-bottom: 0.5rem; }
+            .btn-add { width: 100%; justify-content: center; display: flex; align-items: center; }
+            .table-container { padding: 0.5rem; }
+            .table { font-size: 0.75rem; }
+            .table th, .table td { padding: 0.4rem 0.25rem; }
+            .btn-action { padding: 0.2rem 0.3rem; font-size: 0.75rem; }
+        }
+
+        .table-container {
+            background: white; border: 1px solid #e0e0e0;
+            border-radius: 8px; padding: 1.5rem;
+        }
+        .table thead { background: #f8f9fa; border-bottom: 2px solid #e0e0e0; }
+        .table th { color: #495057; font-weight: 500; padding: 0.75rem; }
+        .table td { vertical-align: middle; padding: 0.75rem; color: #212529; }
+
+        .btn-action {
+            padding: 0.25rem 0.5rem; font-size: 0.875rem;
+            margin: 0 0.125rem; border: 1px solid #dee2e6;
+            background: white; color: #495057; transition: all 0.2s;
+        }
+        .btn-action:hover { background: #f8f9fa; border-color: #495057; }
+        .btn-edit:hover { color: #212529; }
+        .btn-delete:hover { color: #dc3545; border-color: #dc3545; }
+
+        .modal-header {
+            background: #f8f9fa; border-bottom: 1px solid #e0e0e0;
+        }
+        .modal-title { color: #212529; font-weight: 500; }
+
+        .btn-save { background: #212529; border: none; color: white; }
+        .btn-save:hover { background: #343a40; }
+        .btn-cancel {
+            border: 1px solid #dee2e6;
+            background: white; color: #495057;
+        }
+        .btn-cancel:hover { background: #f8f9fa; }
+        .empty-state { text-align: center; padding: 3rem 1rem; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="content-container">
+
+        <div class="header-section">
+            <h1 class="page-title">Gestión de Tiendas</h1>
+            <button class="btn btn-add" id="btnAddStore" data-bs-toggle="modal" data-bs-target="#storeModal">
+                <i class="bi bi-plus-circle me-2"></i>Agregar Tienda
+            </button>
+        </div>
+
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%">Nombre</th>
+                            <th style="width: 30%">Dirección</th>
+                            <th style="width: 15%">Latitud</th>
+                            <th style="width: 15%">Longitud</th>
+                            <th style="width: 20%" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="storesTableBody">
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <i class="bi bi-shop" style="font-size: 3rem;"></i>
+                                <p class="mt-2">Cargando tiendas...</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear/Editar -->
+    <div class="modal fade" id="storeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="storeModalLabel">Agregar Tienda</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <form id="storeForm">
+                        <input type="hidden" id="storeUuid">
+
+                        <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="storeName" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Dirección</label>
+                            <textarea class="form-control" id="storeAddress" rows="2" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Latitud</label>
+                            <input type="number" class="form-control" id="storeLat" step="0.000001" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Longitud</label>
+                            <input type="number" class="form-control" id="storeLng" step="0.000001" required>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-cancel" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-save" id="btnSaveStore">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Eliminar -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Eliminación</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p>¿Deseas eliminar la tienda <strong id="deleteStoreName"></strong>?</p>
+                    <p class="text-muted">Esta acción no se puede deshacer.</p>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-cancel" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-danger" id="btnConfirmDelete">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Asignar Repartidor -->
+    <div class="modal fade" id="assignModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Asignar Repartidor</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="assignForm">
+                        <div class="mb-3">
+                            <label for="driverSelect" class="form-label">Seleccionar Repartidor</label>
+                            <select class="form-select" id="driverSelect" required>
+                                <option value="">Seleccione un repartidor...</option>
+                                <!-- Options will be populated by JS -->
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-cancel" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-save" id="btnSaveAssignment">Asignar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- PouchDB Library (Offline-First Database) -->
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.find.min.js"></script>
+
+    <!-- Properties (BASE_URL) - DEBE CARGARSE PRIMERO -->
+    <script src="../../properties.js"></script>
+
+    <!-- Hybrid Sync Service (Backend-first + PouchDB cache) -->
+    <script src="../../services/sync-pouchdb-service.js"></script>
+
+    <!-- PWA Initialization (debe cargarse primero) -->
+    <script type="module" src="../../pwa-init.js"></script>
+
+    <!-- Auth Guard - Protección de ruta (DEBE IR PRIMERO) -->
+    <script type="module" src="../../utils/auth-guard.js"></script>
+
+    <!-- Admin Navbar Component -->
+    <script type="module" src="../../components/admin-navbar.js"></script>
+
+    <!-- Store JS (ahora como módulo ES6) -->
+    <script type="module" src="store.js"></script>
+</body>
+</html>

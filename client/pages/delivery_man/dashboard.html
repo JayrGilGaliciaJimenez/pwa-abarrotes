@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Panel de Repartidor - Mi Ruta</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Panel de repartidor con soporte offline">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Abarrotes">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/images/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/assets/images/icon-192x192.png">
+
+    <!-- Bootstrap CSS -->
+    <link href="../../assets/bootstrap/css/bootstrap.css" rel="stylesheet">
+
+    <!-- Dashboard Custom CSS -->
+    <link href="./dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-custom">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0">Sistema de Abarrotes</span>
+            <button class="btn btn-logout" id="logoutBtn">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container mt-4 mb-5">
+        <!-- Título Principal -->
+        <h2 class="page-title">Mi Ruta del Día</h2>
+
+        <!-- Sección de Información Personal -->
+        <div class="card welcome-card mb-4">
+            <div class="card-body">
+                <h4 class="welcome-title">Bienvenido, <span id="deliveryManName">Repartidor</span></h4>
+                <p class="welcome-text">Aquí está tu ruta del día</p>
+                <button class="btn btn-primary mt-3" id="scanQrBtn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="me-2" viewBox="0 0 16 16">
+                        <path d="M0 .5A.5.5 0 0 1 .5 0h3a.5.5 0 0 1 0 1H1v2.5a.5.5 0 0 1-1 0v-3Zm12 0a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-1 0V1h-2.5a.5.5 0 0 1-.5-.5ZM.5 12a.5.5 0 0 1 .5.5V15h2.5a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5Zm15 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H15v-2.5a.5.5 0 0 1 .5-.5ZM4 4h1v1H4V4Zm2 0h1v1H6V4Zm2 0h1v1H8V4Zm5 0h1v1h-1V4Zm-5 2H8v1H8V6Zm2 0h1v1h-1V6Zm2 0h1v1h-1V6Zm2 0h1v1h-1V6ZM4 8h1v1H4V8Zm2 0h1v1H6V8Zm2 0h1v1H8V8Zm5 0h1v1h-1V8Zm-5 2h1v1H8v-1Zm2 0h1v1h-1v-1Zm2 0h1v1h-1v-1ZM4 11h1v1H4v-1Zm2 0h1v1H6v-1Zm5 2h1v1h-1v-1Zm2 0h1v1h-1v-1Z"/>
+                    </svg>
+                    Escanear Código QR
+                </button>
+            </div>
+        </div>
+
+        <!-- Lista de Tiendas a Visitar (Ruta del Día) -->
+        <div class="card stores-card">
+            <div class="card-header">
+                <h5>Tiendas a Visitar</h5>
+            </div>
+            <div class="card-body p-0">
+                <!-- List Group de Bootstrap -->
+                <div class="list-group list-group-flush" id="storesListContainer">
+                    <!-- Las tiendas se cargarán dinámicamente desde JavaScript -->
+                    <div class="text-center py-5">
+                        <div class="spinner-border spinner-border-custom" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Cargando tiendas...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de mensajes -->
+        <div id="messageArea" class="mt-3"></div>
+    </div>
+
+    <!-- Network Status Indicator -->
+    <div id="network-status"></div>
+
+    <!-- Modal del Escáner QR -->
+    <div class="modal fade" id="qrScannerModal" tabindex="-1" aria-labelledby="qrScannerModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="qrScannerModalLabel">Escanear Código QR</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="qr-reader" style="width: 100%;"></div>
+                    <div id="qr-reader-results" class="mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- html5-qrcode Library -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <!-- Bootstrap JS -->
+    <script src="../../assets/bootstrap/js/bootstrap.js"></script>
+
+    <!-- Properties (BASE_URL) -->
+    <script src="../../properties.js"></script>
+
+    <!-- PWA Initialization (IMPORTANTE: Registra el Service Worker) -->
+    <script type="module" src="/pwa-init.js"></script>
+
+    <!-- Auth Guard - Protección de ruta (DEBE IR PRIMERO) -->
+    <script type="module" src="../../utils/auth-guard.js"></script>
+
+    <!-- Dashboard JS -->
+    <script src="./dashboard.js"></script>
+</body>
+</html>

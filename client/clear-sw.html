@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpiar Service Worker</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #212529;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #6c757d;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #c82333;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        #log {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .log-item {
+            margin-bottom: 8px;
+            padding: 5px;
+        }
+        .log-success {
+            color: #28a745;
+        }
+        .log-error {
+            color: #dc3545;
+        }
+        .log-info {
+            color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Limpieza de Service Worker y Caché</h1>
+        <p class="subtitle">Usa esta página para resolver problemas con el Service Worker</p>
+
+        <button onclick="clearAll()">🗑️ Limpiar TODO (Recomendado)</button>
+        <button onclick="unregisterSW()">❌ Solo Desregistrar Service Worker</button>
+        <button onclick="clearCaches()">🧹 Solo Limpiar Cachés</button>
+        <button class="success" onclick="location.href='index.html'">✅ Ir al Login</button>
+
+        <div id="log"></div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+
+        function addLog(message, type = 'info') {
+            const item = document.createElement('div');
+            item.className = `log-item log-${type}`;
+            item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(item);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        async function clearAll() {
+            addLog('🚀 Iniciando limpieza completa...', 'info');
+
+            await unregisterSW();
+            await clearCaches();
+            await clearStorage();
+
+            addLog('✅ LIMPIEZA COMPLETA TERMINADA', 'success');
+            addLog('Recarga la página (Cmd+R) para aplicar cambios', 'info');
+        }
+
+        async function unregisterSW() {
+            addLog('Desregistrando Service Workers...', 'info');
+
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+
+                    if (registrations.length === 0) {
+                        addLog('No hay Service Workers registrados', 'info');
+                        return;
+                    }
+
+                    for (let registration of registrations) {
+                        const result = await registration.unregister();
+                        if (result) {
+                            addLog(`✅ Service Worker desregistrado: ${registration.scope}`, 'success');
+                        } else {
+                            addLog(`❌ No se pudo desregistrar: ${registration.scope}`, 'error');
+                        }
+                    }
+                } catch (error) {
+                    addLog(`❌ Error: ${error.message}`, 'error');
+                }
+            } else {
+                addLog('Service Workers no soportados', 'error');
+            }
+        }
+
+        async function clearCaches() {
+            addLog('Limpiando cachés...', 'info');
+
+            if ('caches' in window) {
+                try {
+                    const cacheNames = await caches.keys();
+
+                    if (cacheNames.length === 0) {
+                        addLog('No hay cachés para limpiar', 'info');
+                        return;
+                    }
+
+                    for (let cacheName of cacheNames) {
+                        const result = await caches.delete(cacheName);
+                        if (result) {
+                            addLog(`✅ Caché eliminado: ${cacheName}`, 'success');
+                        } else {
+                            addLog(`❌ No se pudo eliminar: ${cacheName}`, 'error');
+                        }
+                    }
+                } catch (error) {
+                    addLog(`❌ Error: ${error.message}`, 'error');
+                }
+            } else {
+                addLog('Cache API no soportada', 'error');
+            }
+        }
+
+        async function clearStorage() {
+            addLog('Limpiando localStorage...', 'info');
+
+            try {
+                const itemsCount = localStorage.length;
+                localStorage.clear();
+                addLog(`✅ ${itemsCount} items eliminados de localStorage`, 'success');
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`, 'error');
+            }
+
+            addLog('Limpiando sessionStorage...', 'info');
+
+            try {
+                const itemsCount = sessionStorage.length;
+                sessionStorage.clear();
+                addLog(`✅ ${itemsCount} items eliminados de sessionStorage`, 'success');
+            } catch (error) {
+                addLog(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Mostrar estado inicial
+        window.addEventListener('load', async () => {
+            addLog('🔍 Verificando estado del Service Worker...', 'info');
+
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                addLog(`Service Workers registrados: ${registrations.length}`, 'info');
+
+                registrations.forEach((reg, index) => {
+                    addLog(`  ${index + 1}. Scope: ${reg.scope}`, 'info');
+                });
+            }
+
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                addLog(`Cachés encontrados: ${cacheNames.length}`, 'info');
+
+                cacheNames.forEach((name, index) => {
+                    addLog(`  ${index + 1}. ${name}`, 'info');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

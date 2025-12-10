@@ -1,0 +1,1 @@
+window.BASE_URL = 'http://localhost:82/api/v1'

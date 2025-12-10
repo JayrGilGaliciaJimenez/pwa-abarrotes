@@ -10,8 +10,8 @@
  * Los datos (productos, tiendas) son manejados por el Hybrid Sync Service.
  */
 
-const CACHE_NAME = 'abarrotes-hybrid-v6'; // Network status no renderiza con admin navbar
-const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v6';
+const CACHE_NAME = 'abarrotes-hybrid-v7'; // Soporte UPDATE para tiendas offline/online
+const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v7';
 
 /**
  * APP SHELL - Assets críticos que deben cachearse en install

@@ -10,8 +10,8 @@
  * Los datos (productos, tiendas) son manejados por el Hybrid Sync Service.
  */
 
-const CACHE_NAME = 'abarrotes-hybrid-v2'; // Fix: Excluir auth del SW
-const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v2';
+const CACHE_NAME = 'abarrotes-hybrid-v3'; // Auth Guard centralizado
+const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v3';
 
 /**
  * APP SHELL - Assets críticos que deben cachearse en install
@@ -36,6 +36,7 @@ const APP_SHELL = [
     '/services/sync-pouchdb-service.js',
     '/components/network-status.js',
     '/components/admin-navbar.js',
+    '/utils/auth-guard.js',
     '/pwa-init.js',
 
     // JavaScript - Páginas

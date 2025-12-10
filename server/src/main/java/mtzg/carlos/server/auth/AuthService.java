@@ -17,20 +17,20 @@ import mtzg.carlos.server.utils.Utilities;
 @RequiredArgsConstructor
 public class AuthService {
 
-        private final IUserRepository userRepository;
-        private final JwtService jwtService;
-        private final AuthenticationManager authenticationManager;
+    private final IUserRepository userRepository;
+    private final JwtService jwtService;
+    private final AuthenticationManager authenticationManager;
 
-        public ResponseEntity<Object> authenticate(AuthRequest request) {
-                authenticationManager.authenticate(
-                                new UsernamePasswordAuthenticationToken(
-                                                request.getEmail(),
-                                                request.getPassword()));
-                var user = userRepository.findByEmail(request.getEmail())
-                                .orElseThrow(() -> new UsernameNotFoundException(
-                                                "User not found with email: " + request.getEmail()));
-                var jwtToken = jwtService.generateToken(user, user.getUuid());
-                return Utilities.authResponse(HttpStatus.OK, "User authenticated successfully", jwtToken);
-        }
+    public ResponseEntity<Object> authenticate(AuthRequest request) {
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()));
+        var user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "User not found with email: " + request.getEmail()));
+        var jwtToken = jwtService.generateToken(user, user.getUuid());
+        return Utilities.authResponse(HttpStatus.OK, "User authenticated successfully", jwtToken);
+    }
 
 }

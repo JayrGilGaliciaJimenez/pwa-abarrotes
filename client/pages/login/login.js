@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Guardar el token y datos del usuario
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(payload));
+                    localStorage.setItem('uuid', payload.uuid);
 
                     // Determinar la ruta según el rol
                     let dashboardUrl = '';

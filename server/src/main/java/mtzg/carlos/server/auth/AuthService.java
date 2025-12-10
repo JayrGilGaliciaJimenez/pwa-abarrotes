@@ -29,7 +29,7 @@ public class AuthService {
                 var user = userRepository.findByEmail(request.getEmail())
                                 .orElseThrow(() -> new UsernameNotFoundException(
                                                 "User not found with email: " + request.getEmail()));
-                var jwtToken = jwtService.generateToken(user);
+                var jwtToken = jwtService.generateToken(user, user.getUuid());
                 return Utilities.authResponse(HttpStatus.OK, "User authenticated successfully", jwtToken);
         }
 

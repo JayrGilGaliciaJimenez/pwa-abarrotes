@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 
 import mtzg.carlos.server.modules.stores.IStoreRepository;
 import mtzg.carlos.server.modules.stores.StoreModel;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -25,9 +24,7 @@ import mtzg.carlos.server.utils.Utilities;
 public class ProductService {
 
     private final IProductRepository productRepository;
-
-    @Autowired
-    private IStoreRepository storeRepository;
+    private final IStoreRepository storeRepository;
 
     @Transactional(readOnly = true)
     public ResponseEntity<Object> getAllProducts() {
@@ -142,31 +139,26 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public ResponseEntity<Object> findProductByStore(UUID uuid){
+    public ResponseEntity<Object> findProductByStore(UUID uuid) {
 
-        Optional<StoreModel> foundStore = storeRepository.findByUuid(uuid);
-
-        if (foundStore.isEmpty()){
+        Optional<StoreModel> storeOpt = storeRepository.findByUuid(uuid);
+        if (storeOpt.isEmpty()) {
             return Utilities.simpleResponse(HttpStatus.NOT_FOUND, "Store not found");
         }
+        StoreModel store = storeOpt.get();
 
-        // Mapear ProductModel → ProductResponseDto
-        Set<ProductResponseDto> productResponseDtos =
-                foundStore.get().getProducts().stream()
-                        .map(product -> ProductResponseDto.builder()
-                                .uuid(product.getUuid())
-                                .name(product.getName())
-                                .description(product.getDescription())
-                                .basePrice(product.getBasePrice())
-                                .build()
-                        )
-                        .collect(Collectors.toSet());
-
-        if (productResponseDtos.isEmpty()){
+        Set<ProductResponseDto> productResponseDtos = store.getProducts().stream()
+                .map(product -> ProductResponseDto.builder()
+                        .uuid(product.getUuid())
+                        .name(product.getName())
+                        .description(product.getDescription())
+                        .basePrice(product.getBasePrice())
+                        .build())
+                .collect(Collectors.toSet());
+        if (productResponseDtos.isEmpty()) {
             return Utilities.simpleResponse(HttpStatus.BAD_REQUEST, "this store don't have products");
         }
-
-        return Utilities.generateResponse(HttpStatus.OK,"products fetched successfully", productResponseDtos);
+        return Utilities.generateResponse(HttpStatus.OK, "products fetched successfully", productResponseDtos);
     }
 
 }

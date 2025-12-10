@@ -1,1 +1,1 @@
-BASE_URL = 'http://192.168.0.28:82/api/v1'
+BASE_URL = 'http://localhost:82/api/v1'

@@ -962,6 +962,61 @@ class HybridSyncService {
   }
 
   // ==========================================
+  // USERS (USUARIOS) - GENERAL
+  // ==========================================
+
+  /**
+   * Obtener todos los usuarios
+   * - Con internet: GET al backend + cachea en PouchDB
+   * - Sin internet: Lee de PouchDB
+   */
+  async getAllUsers() {
+    console.log("[HybridSync] 👥 Obteniendo usuarios...");
+    console.log(
+      "[HybridSync] Estado de conexión:",
+      navigator.onLine ? "🟢 Online" : "🔴 Offline",
+    );
+
+    if (navigator.onLine) {
+      try {
+        console.log("[HybridSync] 🌐 Cargando usuarios desde BACKEND...");
+
+        // 1. GET al backend
+        const response = await fetch(`${BACKEND_URL}/users/delivery`, {
+          method: "GET",
+          headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        const users = responseData.data; // Los usuarios están en .data
+        console.log(
+          `[HybridSync] ✅ ${users.length} usuarios obtenidos del backend`,
+        );
+
+        // 2. Cachear en PouchDB para uso offline
+        await this.cacheUsersInPouchDB(users);
+
+        return users;
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Error al cargar del backend, usando caché:",
+          error.message,
+        );
+        // Si falla, cargar desde caché
+        return await this.loadUsersFromCache();
+      }
+    } else {
+      // Sin internet, cargar desde caché
+      console.log("[HybridSync] 📴 SIN INTERNET - Cargando desde caché...");
+      return await this.loadUsersFromCache();
+    }
+  }
+
+  // ==========================================
   // USERS (REPARTIDORES) - CRUD HÍBRIDO
   // ==========================================
 
@@ -1374,6 +1429,76 @@ class HybridSyncService {
         "[HybridSync] ❌ Error al marcar repartidor para eliminar offline:",
         error,
       );
+      throw error;
+    }
+  }
+
+  // ==========================================
+  // ASIGNACIONES (ROUTES)
+  // ==========================================
+
+  /**
+   * Asignar repartidor a tienda
+   * - Con internet: POST al backend
+   * - Sin internet: Guardar en PouchDB (assignments)
+   */
+  async assignDriver(userUuid, storeUuid) {
+    const assignmentData = { userUuid, storeUuid };
+    console.log("[HybridSync] 🔗 Asignando repartidor:", assignmentData);
+    console.log(
+      "[HybridSync] Estado de conexión:",
+      navigator.onLine ? "🟢 Online" : "🔴 Offline",
+    );
+
+    if (navigator.onLine) {
+      try {
+        console.log("[HybridSync] 🌐 Enviando asignación al BACKEND...");
+        const response = await fetch(`${BACKEND_URL}/routes/assign`, {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify(assignmentData),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        console.log("[HybridSync] ✅ Asignación exitosa en backend");
+        return { success: true, data: responseData };
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Error al asignar en backend, guardando localmente:",
+          error.message,
+        );
+        return await this.saveAssignmentOffline(assignmentData);
+      }
+    } else {
+      console.log(
+        "[HybridSync] 📴 SIN INTERNET - Guardando asignación localmente...",
+      );
+      return await this.saveAssignmentOffline(assignmentData);
+    }
+  }
+
+  /**
+   * Guardar asignación offline
+   */
+  async saveAssignmentOffline(data) {
+    try {
+      const tempId = `assign_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      const doc = {
+        _id: tempId,
+        ...data,
+        syncPending: true,
+        syncOperation: "assign",
+        syncTimestamp: Date.now(),
+      };
+      await this.dbAssignments.put(doc);
+      console.log("[HybridSync] ✅ Asignación guardada OFFLINE");
+      return { success: true, offline: true };
+    } catch (error) {
+      console.error("[HybridSync] ❌ Error al guardar asignación offline:", error);
       throw error;
     }
   }

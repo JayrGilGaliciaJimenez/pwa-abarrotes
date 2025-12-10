@@ -166,6 +166,18 @@ class NetworkStatusComponent {
     render() {
         if (!this.container) return;
 
+        // SOLO mostrar el badge si hay algo importante:
+        // - Está offline
+        // - Está sincronizando
+        // - Hay cambios pendientes
+        const shouldShow = !this.isOnline || this.isSyncing || this.pendingCount > 0;
+
+        if (!shouldShow) {
+            // Si está online y sin problemas, no mostrar nada
+            this.container.innerHTML = '';
+            return;
+        }
+
         const statusClass = this.getStatusClass();
         const statusText = this.getStatusText();
         const statusIcon = this.getStatusIcon();

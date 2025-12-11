@@ -9,6 +9,6 @@ COPY docker/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/50-env-config.sh /docker-entrypoint.d/50-env-config.sh
 RUN chmod +x /docker-entrypoint.d/50-env-config.sh
 
-ENV API_BASE_URL=https://localhost:8082
+ENV API_BASE_URL=https://pwa-abarrotes.duckdns.org:8443
 
 EXPOSE 80 443

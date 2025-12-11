@@ -11,7 +11,16 @@
 
 import dbManager from './db-manager.js';
 
-const BASE_URL = window.BASE_URL || "http://localhost:82/api/v1";
+const BASE_URL = (() => {
+  if (window.BASE_URL) {
+    return window.BASE_URL;
+  }
+  const fallbackBase =
+    (window.__ENV && window.__ENV.API_BASE_URL) ||
+    window.API_BASE_URL ||
+    "http://localhost:82";
+  return `${fallbackBase.replace(/\/+$/, "")}/api/v1`;
+})();
 
 //const BASE_URL = 'http://localhost:82/api/v1';
 

@@ -98,6 +98,21 @@
         .product-item:last-child {
             border-bottom: none;
         }
+        .qr-wrapper {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1.25rem;
+            min-height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+        }
+        .qr-wrapper img {
+            max-width: 220px;
+            width: 100%;
+            height: auto;
+        }
     </style>
 </head>
 <body>
@@ -195,6 +210,48 @@
                 <div class="modal-footer">
                     <button class="btn btn-cancel" data-bs-dismiss="modal">Cancelar</button>
                     <button class="btn btn-danger" id="btnConfirmDelete">Eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalles de Tienda -->
+    <div class="modal fade" id="storeDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalles de la Tienda</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <h5 class="mb-1" id="detailStoreName">-</h5>
+                            <p class="text-muted mb-2" id="detailStoreAddress">-</p>
+                            <p class="text-muted small" id="detailStoreCoords">
+                                <i class="bi bi-geo-alt me-1"></i> -, -
+                            </p>
+                            <h6 class="fw-semibold mt-3">Productos asignados</h6>
+                            <ul class="list-group" id="storeProductsList">
+                                <li class="list-group-item text-muted">Sin productos asignados</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="qr-wrapper">
+                                <img id="storeQrImage" alt="Código QR de la tienda" class="d-none">
+                                <div id="storeQrPlaceholder" class="text-muted text-center">
+                                    <i class="bi bi-qr-code mb-2" style="font-size: 3rem;"></i>
+                                    <p class="mb-0">QR no disponible para esta tienda.</p>
+                                </div>
+                            </div>
+                            <p class="text-muted small text-center mt-2">
+                                Escanea este código QR para registrar visitas en la tienda.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-cancel" data-bs-dismiss="modal">Cerrar</button>
                 </div>
             </div>
         </div>

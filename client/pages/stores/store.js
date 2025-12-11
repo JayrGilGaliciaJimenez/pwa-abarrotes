@@ -11,6 +11,7 @@ let storeModal = null;
 let deleteModal = null;
 let assignModal = null;
 let assignProductsModal = null;
+let storeDetailsModal = null;
 let syncService = null;
 let cachedProducts = [];
 let selectedProductUuids = new Set();
@@ -27,6 +28,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
     assignProductsModal = new bootstrap.Modal(document.getElementById('assignProductsModal'));
+    storeDetailsModal = new bootstrap.Modal(document.getElementById('storeDetailsModal'));
 
     // Cargar tiendas (GET)
     await loadStoresTable();
@@ -165,6 +167,9 @@ function renderStoresTable() {
                     </button>
                     <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-action btn-primary" onclick='showStoreDetails("${storeId}")' title="Ver detalles y QR">
+                        <i class="bi bi-qr-code"></i>
                     </button>
                     <button class="btn btn-action btn-secondary" onclick='assignProductsToStore("${storeId}")' title="Asignar Productos">
                         <i class="bi bi-boxes"></i>
@@ -487,6 +492,67 @@ async function saveProductAssignment() {
     }
 }
 
+function showStoreDetails(storeId) {
+    const store = stores.find(s => s.uuid === storeId || s._id === storeId);
+
+    if (!store) {
+        showToast('Tienda no encontrada', 'error');
+        return;
+    }
+
+    document.getElementById('detailStoreName').textContent = store.name || 'Sin nombre';
+    document.getElementById('detailStoreAddress').textContent = store.address || 'Sin dirección';
+    document.getElementById('detailStoreCoords').textContent =
+        `${store.latitude ?? '-'}, ${store.longitude ?? '-'}`;
+
+    const qrImg = document.getElementById('storeQrImage');
+    const qrPlaceholder = document.getElementById('storeQrPlaceholder');
+    qrImg.onerror = () => {
+        qrImg.classList.add('d-none');
+        qrPlaceholder.classList.remove('d-none');
+    };
+    const qrUrl = resolveQrUrl(store.qrCode);
+
+    if (qrUrl) {
+        qrImg.src = qrUrl;
+        qrImg.alt = `QR de ${store.name || 'tienda'}`;
+        qrImg.classList.remove('d-none');
+        qrPlaceholder.classList.add('d-none');
+    } else {
+        qrImg.classList.add('d-none');
+        qrPlaceholder.classList.remove('d-none');
+    }
+
+    const productList = document.getElementById('storeProductsList');
+    const products = Array.isArray(store.products) ? store.products : [];
+
+    if (products.length === 0) {
+        productList.innerHTML = '<li class="list-group-item text-muted">Sin productos asignados</li>';
+    } else {
+        productList.innerHTML = products
+            .map(product => `
+                <li class="list-group-item">
+                    <strong>${escapeHtml(product.name || 'Producto')}</strong>
+                    ${product.description ? `<br><small class="text-muted">${escapeHtml(product.description)}</small>` : ''}
+                </li>
+            `)
+            .join('');
+    }
+
+    storeDetailsModal.show();
+}
+
+function resolveQrUrl(path) {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) {
+        return path;
+    }
+    const base = window.API_BASE_URL || window.location.origin;
+    const normalizedBase = base.replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${normalizedBase}${normalizedPath}`;
+}
+
 
 /**
  * Actualizar tienda existente (PUT)
@@ -699,6 +765,7 @@ window.editStore = editStore;
 window.deleteStore = deleteStore;
 window.assignDriver = assignDriver;
 window.assignProductsToStore = assignProductsToStore;
+window.showStoreDetails = showStoreDetails;
 window.stores = stores; // Para debugging
 
 console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, PUT, DELETE) con soporte offline/online');

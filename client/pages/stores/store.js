@@ -15,6 +15,7 @@ let storeDetailsModal = null;
 let syncService = null;
 let cachedProducts = [];
 let selectedProductUuids = new Set();
+let currentQrObjectUrl = null;
 
 // Inicialización cuando carga la página
 document.addEventListener('DOMContentLoaded', async function () {
@@ -45,6 +46,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         resetForm();
     });
     document.getElementById('assignProductsModal').addEventListener('hidden.bs.modal', resetProductAssignmentModal);
+    document.getElementById('storeDetailsModal').addEventListener('hidden.bs.modal', () => {
+        if (currentQrObjectUrl) {
+            URL.revokeObjectURL(currentQrObjectUrl);
+            currentQrObjectUrl = null;
+        }
+    });
 
     console.log('[Stores] ✅ Página inicializada correctamente');
 });
@@ -492,7 +499,7 @@ async function saveProductAssignment() {
     }
 }
 
-function showStoreDetails(storeId) {
+async function showStoreDetails(storeId) {
     const store = stores.find(s => s.uuid === storeId || s._id === storeId);
 
     if (!store) {
@@ -507,20 +514,31 @@ function showStoreDetails(storeId) {
 
     const qrImg = document.getElementById('storeQrImage');
     const qrPlaceholder = document.getElementById('storeQrPlaceholder');
-    qrImg.onerror = () => {
-        qrImg.classList.add('d-none');
-        qrPlaceholder.classList.remove('d-none');
-    };
+    qrImg.classList.add('d-none');
+    qrPlaceholder.classList.remove('d-none');
+
+    if (currentQrObjectUrl) {
+        URL.revokeObjectURL(currentQrObjectUrl);
+        currentQrObjectUrl = null;
+    }
+
     const qrUrl = resolveQrUrl(store.qrCode);
 
-    if (qrUrl) {
-        qrImg.src = qrUrl;
-        qrImg.alt = `QR de ${store.name || 'tienda'}`;
-        qrImg.classList.remove('d-none');
-        qrPlaceholder.classList.add('d-none');
-    } else {
-        qrImg.classList.add('d-none');
-        qrPlaceholder.classList.remove('d-none');
+    if (qrUrl && navigator.onLine) {
+        try {
+            const securedQrUrl = await fetchQrImageWithAuth(qrUrl);
+            if (securedQrUrl) {
+                qrImg.src = securedQrUrl;
+                qrImg.alt = `QR de ${store.name || 'tienda'}`;
+                qrImg.classList.remove('d-none');
+                qrPlaceholder.classList.add('d-none');
+                currentQrObjectUrl = securedQrUrl;
+            }
+        } catch (error) {
+            console.error('[Stores] ❌ Error al cargar el QR:', error);
+            qrImg.classList.add('d-none');
+            qrPlaceholder.classList.remove('d-none');
+        }
     }
 
     const productList = document.getElementById('storeProductsList');
@@ -551,6 +569,22 @@ function resolveQrUrl(path) {
     const normalizedBase = base.replace(/\/+$/, '');
     const normalizedPath = path.startsWith('/') ? path : `/${path}`;
     return `${normalizedBase}${normalizedPath}`;
+}
+
+async function fetchQrImageWithAuth(url) {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await fetch(url, {
+        headers,
+        cache: 'no-store',
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
 }
 
 

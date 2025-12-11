@@ -1,9 +1,10 @@
 package mtzg.carlos.server.modules.stores;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
+import mtzg.carlos.server.modules.users.IUserRepository;
+import mtzg.carlos.server.modules.users.UserModel;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,6 +24,9 @@ import mtzg.carlos.server.utils.Utilities;
 public class StoreService {
 
     private final IStoreRepository storeRepository;
+
+    @Autowired
+    private IUserRepository userRepository;
 
     @Value("${qr.content.path}")
     private String qrContentPath;
@@ -176,6 +180,49 @@ public class StoreService {
                     "An error occurred while deleting the store.");
         }
     }
+    public ResponseEntity<Object> findByDeliveryMan(UUID uuid) {
+
+        Optional<UserModel> user = userRepository.findByUuid(uuid);
+
+        if (user.isEmpty()) {
+            return Utilities.simpleResponse(
+                    HttpStatus.NOT_FOUND,
+                    "cant find the user with the uuid: " + uuid
+            );
+        }
+
+        Set<UserModel> userModels = new HashSet<>();
+        userModels.add(user.get());
+
+        List<StoreModel> stores = storeRepository.findByUsers(userModels);
+
+        List<StoreResponseDto> response = stores.stream()
+                .map(store -> StoreResponseDto.builder()
+                        .uuid(store.getUuid())
+                        .name(store.getName())
+                        .address(store.getAddress())
+                        .latitude(store.getLatitude())
+                        .longitude(store.getLongitude())
+                        .qrCode(store.getQrCode())
+                        .products(
+                                store.getProducts().stream()
+                                        .map(p -> ProductResponseDto.builder()
+                                                .uuid(p.getUuid())
+                                                .name(p.getName())
+                                                .description(p.getDescription())
+                                                .basePrice(p.getBasePrice())
+                                                .build()
+                                        )
+                                        .toList()
+                        )
+                        .build()
+                )
+                .toList();
+
+        return Utilities.generateResponse(HttpStatus.OK,"data fetched successfully", response);
+    }
+
+
 
     private String generateQrForStore(UUID uuid) {
         try {

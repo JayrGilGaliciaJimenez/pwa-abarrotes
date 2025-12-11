@@ -48,4 +48,9 @@ public class StoreController {
     public ResponseEntity<Object> deleteStore(@PathVariable("uuid") UUID uuid) {
         return storeService.deleteStore(uuid);
     }
+
+    @GetMapping("/delivery-man/{uuid}")
+    public ResponseEntity<Object> findByDeliveryMan(@PathVariable("uuid") UUID uuid){
+        return storeService.findByDeliveryMan(uuid);
+    }
 }

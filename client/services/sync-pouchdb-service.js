@@ -23,6 +23,7 @@ class HybridSyncService {
     this.dbStores = null;
     this.dbAssignments = null;
     this.dbUsers = null;
+    this.dbStoreProducts = null;
     this.isInitialized = false;
 
     console.log("[HybridSync] Servicio creado");
@@ -38,6 +39,7 @@ class HybridSyncService {
       this.dbStores = new PouchDB("stores");
       this.dbAssignments = new PouchDB("assignments");
       this.dbUsers = new PouchDB("users");
+      this.dbStoreProducts = new PouchDB("store_products");
       this.isInitialized = true;
 
       console.log(
@@ -1514,6 +1516,95 @@ class HybridSyncService {
     }
   }
 
+  /**
+   * Asignar productos a una tienda
+   */
+  async assignProductsToStore(storeUuid, productUuids = []) {
+    const uniqueProducts = Array.isArray(productUuids)
+      ? [...new Set(productUuids.filter((uuid) => !!uuid))]
+      : [];
+
+    if (!storeUuid || uniqueProducts.length === 0) {
+      throw new Error("Debes seleccionar al menos un producto válido");
+    }
+
+    const payload = {
+      storeUuid,
+      productUuids: uniqueProducts,
+    };
+
+    console.log(
+      `[HybridSync] 🧺 Asignando ${uniqueProducts.length} productos a tienda ${storeUuid}`,
+    );
+    console.log(
+      "[HybridSync] Estado de conexión:",
+      navigator.onLine ? "🟢 Online" : "🔴 Offline",
+    );
+
+    if (navigator.onLine) {
+      try {
+        console.log(
+          "[HybridSync] 🌐 Enviando asignación de productos al BACKEND...",
+        );
+        const response = await fetch(`${BACKEND_URL}/store-products/assign`, {
+          method: "POST",
+          headers: this.getHeaders(),
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseData = await response.json().catch(() => ({}));
+        console.log("[HybridSync] ✅ Productos asignados en backend");
+        return { success: true, data: responseData };
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Error al asignar productos en backend, guardando localmente:",
+          error.message,
+        );
+        return await this.saveStoreProductAssignmentOffline(payload);
+      }
+    }
+
+    console.log(
+      "[HybridSync] 📴 SIN INTERNET - Guardando asignación de productos localmente...",
+    );
+    return await this.saveStoreProductAssignmentOffline(payload);
+  }
+
+  /**
+   * Guardar asignación de productos offline
+   */
+  async saveStoreProductAssignmentOffline(data) {
+    try {
+      const tempId = `store_products_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 11)}`;
+      const doc = {
+        _id: tempId,
+        ...data,
+        syncPending: true,
+        syncOperation: "assignStoreProducts",
+        createdAt: new Date().toISOString(),
+      };
+
+      await this.dbStoreProducts.put(doc);
+      console.log(
+        `[HybridSync] ✅ Asignación de productos guardada localmente (${data.productUuids.length} productos)`,
+      );
+
+      return { success: true, offline: true };
+    } catch (error) {
+      console.error(
+        "[HybridSync] ❌ Error al guardar asignación de productos offline:",
+        error,
+      );
+      throw error;
+    }
+  }
+
   // ==========================================
   // AUTO-SYNC
   // ==========================================
@@ -2042,6 +2133,49 @@ class HybridSyncService {
           }
         }
 
+        // ====== SINCRONIZAR ASIGNACIONES DE PRODUCTOS ======
+        const storeProductsResult = await this.dbStoreProducts.allDocs({
+          include_docs: true,
+        });
+        const pendingStoreProductAssignments = storeProductsResult.rows
+          .map((row) => row.doc)
+          .filter((doc) => doc.syncPending === true);
+
+        console.log(
+          `[HybridSync] 🧺 ${pendingStoreProductAssignments.length} asignaciones de productos pendientes`,
+        );
+
+        for (const doc of pendingStoreProductAssignments) {
+          try {
+            console.log(`[HybridSync] 🔄 Sincronizando asignación de productos...`);
+            const response = await fetch(
+              `${BACKEND_URL}/store-products/assign`,
+              {
+                method: "POST",
+                headers: this.getHeaders(),
+                body: JSON.stringify({
+                  storeUuid: doc.storeUuid,
+                  productUuids: doc.productUuids,
+                }),
+              },
+            );
+
+            if (response.ok) {
+              console.log(`[HybridSync] ✅ Asignación de productos sincronizada`);
+              await this.dbStoreProducts.remove(doc);
+            } else {
+              console.error(
+                `[HybridSync] ❌ Error sincronizando asignación de productos: HTTP ${response.status}`,
+              );
+            }
+          } catch (error) {
+            console.error(
+              `[HybridSync] ❌ Error sincronizando asignación de productos:`,
+              error.message,
+            );
+          }
+        }
+
         console.log("[HybridSync] ✅ Auto-sincronización completada");
 
         // LIMPIAR Y REFRESCAR CACHÉ desde el backend
@@ -2172,6 +2306,8 @@ class HybridSyncService {
         this.dbProducts = new PouchDB("products");
         this.dbStores = new PouchDB("stores");
         this.dbUsers = new PouchDB("users");
+        this.dbAssignments = new PouchDB("assignments");
+        this.dbStoreProducts = new PouchDB("store_products");
       } catch (e) {
         console.error("[HybridSync] ❌ Error crítico al reinicializar:", e);
       }
@@ -2187,6 +2323,7 @@ class HybridSyncService {
       await this.dbStores.destroy();
       await this.dbAssignments.destroy();
       await this.dbUsers.destroy();
+      await this.dbStoreProducts.destroy();
       console.log(
         "[HybridSync] 🗑️ Bases de datos limpiadas (productos, tiendas, asignaciones y usuarios)",
       );

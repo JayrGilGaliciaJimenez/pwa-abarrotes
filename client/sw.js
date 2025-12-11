@@ -215,7 +215,7 @@ const APP_SHELL = [
     // JavaScript - Bootstrap y configuración
     '/assets/bootstrap/js/bootstrap.js',
     '/properties.js',
-    '/env-config.js',
+    // '/env-config.js',
 
     // PWA Manifest
     '/manifest.json'

@@ -522,9 +522,9 @@ async function showStoreDetails(storeId) {
         currentQrObjectUrl = null;
     }
 
-    const qrUrl = resolveQrUrl(store.qrCode);
-
-    if (qrUrl && navigator.onLine) {
+    const storeUuid = store.uuid;
+    if (storeUuid && navigator.onLine) {
+        const qrUrl = `${window.BASE_URL}/stores/${storeUuid}/qr`;
         try {
             const securedQrUrl = await fetchQrImageWithAuth(qrUrl);
             if (securedQrUrl) {
@@ -558,17 +558,6 @@ async function showStoreDetails(storeId) {
     }
 
     storeDetailsModal.show();
-}
-
-function resolveQrUrl(path) {
-    if (!path) return null;
-    if (/^https?:\/\//i.test(path)) {
-        return path;
-    }
-    const base = window.API_BASE_URL || window.location.origin;
-    const normalizedBase = base.replace(/\/+$/, '');
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    return `${normalizedBase}${normalizedPath}`;
 }
 
 async function fetchQrImageWithAuth(url) {

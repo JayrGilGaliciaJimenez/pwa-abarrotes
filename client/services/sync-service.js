@@ -12,7 +12,16 @@
 import dbManager from './db-manager.js';
 import { getIsOnline, onConnectivityChange } from './api-service.js';
 
-const BASE_URL = 'http://localhost:82/api/v1';
+const BASE_URL = (() => {
+  if (window.BASE_URL) {
+    return window.BASE_URL;
+  }
+  const fallbackBase =
+    (window.__ENV && window.__ENV.API_BASE_URL) ||
+    window.API_BASE_URL ||
+    "http://localhost:82";
+  return `${fallbackBase.replace(/\/+$/, "")}/api/v1`;
+})();
 const SYNC_TAG = 'offline-sync';
 
 // Estado de sincronización

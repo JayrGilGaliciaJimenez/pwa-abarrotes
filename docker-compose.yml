@@ -31,20 +31,31 @@ services:
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_JPA_FORMAT_SQL: "true"
       JWT_SECRET: ${JWT_SECRET:-52aa49109e4fc36422edbc07251d3eb3646baccae8113a8f279ef248e5b7a0e4}
+      SERVER_SSL_ENABLED: true
+      SERVER_SSL_KEYSTORE: /etc/letsencrypt/live/pwa-abarrotes.duckdns.org/keystore.p12
+      SERVER_SSL_KEYSTORE_PASS: "!uge16*Ylyij8z"
     depends_on:
       - db
     ports:
       - "8082:82"
+    volumes:
+      - certbot-certs:/etc/letsencrypt:ro
 
   client:
     build:
       context: ./client
     environment:
-      API_BASE_URL: http://server:82
+      API_BASE_URL: https://localhost:8082
     depends_on:
       - server
     ports:
       - "8080:80"
+      - "8443:443"
+    volumes:
+      - certbot-certs:/etc/letsencrypt:ro
 
 volumes:
   db_data:
+    external: true
+  certbot-certs:
+    external: true

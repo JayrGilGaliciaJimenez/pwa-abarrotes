@@ -12,7 +12,7 @@
  */
 
 
-const CACHE_NAME = 'abarrotes-hybrid-v2'; // Nueva versión para Background Sync
+const CACHE_NAME = 'abarrotes-hybrid-v3'; // Nueva versión para Background Sync
 const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v1';
 const PENDING_REQUESTS_STORE = 'pending-requests';
 const DB_NAME = 'pwa-offline-requests';

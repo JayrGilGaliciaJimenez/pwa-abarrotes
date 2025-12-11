@@ -77,9 +77,9 @@
     <!-- PouchDB Service (Abstracción para CRUD) -->
     <script src="/services/pouchdb-service.js"></script>
 
-    <!-- Properties (BASE_URL) -->
-    <script src="./properties.js"></script>
+    <!-- Runtime env config debe cargarse antes de properties -->
     <script src="/env-config.js"></script>
+    <script src="./properties.js"></script>
 
     <!-- PWA Initialization (IMPORTANTE: Registra el Service Worker) -->
     <script type="module" src="/pwa-init.js"></script>

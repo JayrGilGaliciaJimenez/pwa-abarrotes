@@ -313,9 +313,9 @@
     <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.find.min.js"></script>
 
-    <!-- Properties (BASE_URL) - DEBE CARGARSE PRIMERO -->
-    <script src="../../properties.js"></script>
+    <!-- Runtime env config debe cargarse antes de properties -->
     <script src="/env-config.js"></script>
+    <script src="../../properties.js"></script>
 
     <!-- Hybrid Sync Service (Backend-first + PouchDB cache) -->
     <script src="../../services/sync-pouchdb-service.js"></script>

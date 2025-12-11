@@ -11,7 +11,9 @@ const BACKEND_URL = (() => {
   const fallbackBase =
     (window.__ENV && window.__ENV.API_BASE_URL) ||
     window.API_BASE_URL ||
-    "http://localhost:82";
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+      ? "http://localhost:82"
+      : window.location.origin);
   return `${fallbackBase.replace(/\/+$/, "")}/api/v1`;
 })();
 

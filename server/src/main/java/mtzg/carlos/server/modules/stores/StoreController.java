@@ -1,4 +1,4 @@
-ackage mtzg.carlos.server.modules.stores;
+package mtzg.carlos.server.modules.stores;
 
 import java.util.UUID;
 

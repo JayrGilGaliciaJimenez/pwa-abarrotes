@@ -1,0 +1,376 @@
+/**
+ * Store Visit - Estilos para la página de visita a tienda
+ */
+
+/* Configuración general */
+body {
+    background-color: #f8f9fa;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Navbar */
+.navbar-custom {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.navbar-custom .navbar-brand {
+    color: #333333;
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.btn-back {
+    color: #666666;
+    border: none;
+    background-color: transparent;
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-back:hover {
+    color: #333333;
+    background-color: #f5f5f5;
+}
+
+/* Card de información de tienda */
+.store-info-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.store-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.store-icon {
+    background-color: #f0f0f0;
+    border-radius: 12px;
+    padding: 1rem;
+    color: #666666;
+    flex-shrink: 0;
+}
+
+.store-details {
+    flex-grow: 1;
+}
+
+.store-name {
+    color: #333333;
+    font-weight: 600;
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.store-address {
+    color: #666666;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+/* Card de ubicación */
+.location-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.location-card .card-header {
+    background-color: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 0.75rem 1rem;
+}
+
+.location-card .card-header h6 {
+    color: #333333;
+    font-weight: 500;
+}
+
+.location-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.location-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.location-label {
+    color: #888888;
+    font-size: 0.875rem;
+}
+
+.location-value {
+    color: #333333;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+/* Card de productos */
+.products-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.products-card .card-header {
+    background-color: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 0.75rem 1rem;
+}
+
+.products-card .card-header h6 {
+    color: #333333;
+    font-weight: 500;
+}
+
+.product-item {
+    padding: 1rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.product-item:last-child {
+    border-bottom: none;
+}
+
+.product-name {
+    color: #333333;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.product-price {
+    color: #28a745;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+/* Contenedor de acciones */
+.actions-container {
+    margin-top: 1.5rem;
+    padding-bottom: 2rem;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+    .store-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .location-info {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .location-item {
+        justify-content: space-between;
+        width: 100%;
+    }
+}
+/* Estilos para el modal de productos */
+.product-item-modal {
+    transition: background-color 0.2s;
+}
+
+.product-item-modal:hover {
+    background-color: #f8f9fa;
+}
+
+.product-checkbox:checked + label {
+    font-weight: 600;
+}
+
+.product-checkbox:checked + label .product-name {
+    color: #0d6efd;
+}
+
+/* Toast personalizado */
+.toast-container {
+    z-index: 1060;
+}
+
+/* Estado disabled mejorado */
+.btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+/* Contador en botón del modal */
+#confirmAddProducts span {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 2px 8px;
+    margin-right: 4px;
+}
+
+/* ========================================
+   Estilos para el modal de cámara
+   ======================================== */
+
+/* Contenedor de cámara */
+.camera-container {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #000;
+    overflow: hidden;
+}
+
+.camera-container video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Overlay de la cámara */
+.camera-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.camera-frame {
+    width: 85%;
+    max-width: 350px;
+    aspect-ratio: 4/3;
+    border: 3px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.3);
+}
+
+/* Controles de cámara */
+.camera-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 2rem;
+    display: flex;
+    justify-content: center;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+}
+
+.btn-capture {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 4px solid rgba(255, 255, 255, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    padding: 0;
+}
+
+.btn-capture svg {
+    fill: #dc3545;
+    transition: fill 0.15s ease;
+}
+
+.btn-capture:hover {
+    transform: scale(1.05);
+    background-color: #f8f9fa;
+}
+
+.btn-capture:active {
+    transform: scale(0.95);
+    background-color: #e9ecef;
+}
+
+/* Contenedor de preview */
+.preview-container {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #000;
+    overflow: hidden;
+}
+
+.captured-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background-color: #000;
+}
+
+/* Controles de preview */
+.preview-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+}
+
+.preview-controls .btn {
+    min-width: 140px;
+}
+
+/* Estado de error de cámara */
+.camera-error {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+}
+
+.camera-error h5 {
+    color: #333;
+}
+
+.camera-error p {
+    max-width: 280px;
+}
+
+/* Modal fullscreen ajustes */
+#cameraModal .modal-content {
+    background-color: #000;
+}
+
+#cameraModal .modal-header {
+    background-color: #1a1a1a;
+    border-bottom: 1px solid #333;
+    color: #fff;
+}
+
+#cameraModal .modal-header .btn-close {
+    filter: invert(1);
+}
+
+#cameraModal .modal-body {
+    min-height: 0;
+}

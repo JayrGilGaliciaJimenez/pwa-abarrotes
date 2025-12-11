@@ -35,7 +35,7 @@ public class StoreRegisterDto {
     private Double latitude;
 
     @NotNull(message = "Longitude is required")
-    @Min(value = -18, message = "Longitude must be between -180 and 180")
+    @Min(value = -180, message = "Longitude must be between -180 and 180")
     @Max(value = 180, message = "Longitude must be between -180 and 180")
     private Double longitude;
 

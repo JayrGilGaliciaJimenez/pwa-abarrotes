@@ -190,7 +190,7 @@ async function showInstallPrompt() {
  */
 function initSyncFeatures() {
     // Verificar soporte de Background Sync
-    if ('serviceWorker' in navigator && 'sync' in swRegistration) {
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
         console.log('[PWA] ✅ Background Sync soportado');
     } else {
         console.warn('[PWA] ⚠️ Background Sync no soportado, usando fallback');
@@ -207,6 +207,97 @@ function initSyncFeatures() {
         } else {
             console.log('[PWA] ❌ Permisos de notificación denegados');
         }
+    }
+
+    // Escuchar mensajes del Service Worker (ej: sincronización completada)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', handleServiceWorkerMessage);
+    }
+
+    // Escuchar cambios de conectividad para disparar sync
+    window.addEventListener('online', handleOnlineEvent);
+}
+
+/**
+ * Maneja mensajes recibidos del Service Worker
+ * @param {MessageEvent} event
+ */
+function handleServiceWorkerMessage(event) {
+    console.log('[PWA] 📨 Mensaje del Service Worker:', event.data);
+
+    if (event.data && event.data.type === 'SYNC_COMPLETE') {
+        const { successCount, failCount, message } = event.data;
+
+        if (successCount > 0) {
+            showToast(`✅ ${successCount} visita(s) sincronizada(s) correctamente`, 'success');
+        }
+
+        if (failCount > 0) {
+            showToast(`⚠️ ${failCount} visita(s) pendiente(s) de sincronizar`, 'error');
+        }
+
+        console.log('[PWA] 📊 Resultado de sincronización:', message);
+    }
+}
+
+/**
+ * Maneja el evento de reconexión a internet
+ * Intenta sincronizar solicitudes pendientes
+ */
+async function handleOnlineEvent() {
+    console.log('[PWA] 🌐 Conexión restaurada, verificando pendientes...');
+
+    try {
+        // Verificar si hay soporte de Background Sync
+        if ('serviceWorker' in navigator && 'SyncManager' in window) {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.sync.register('sync-visits');
+            console.log('[PWA] 🔄 Background Sync registrado tras reconexión');
+        } else {
+            // Fallback: forzar sincronización manual
+            await forceSyncManually();
+        }
+    } catch (error) {
+        console.error('[PWA] ❌ Error al registrar sync tras reconexión:', error);
+        // Intentar sync manual como fallback
+        await forceSyncManually();
+    }
+}
+
+/**
+ * Fuerza la sincronización manual enviando mensaje al Service Worker
+ * Usado como fallback cuando Background Sync no está disponible
+ */
+async function forceSyncManually() {
+    if (!navigator.serviceWorker.controller) {
+        console.warn('[PWA] ⚠️ No hay Service Worker activo para sync manual');
+        return;
+    }
+
+    try {
+        const messageChannel = new MessageChannel();
+
+        const response = await new Promise((resolve, reject) => {
+            messageChannel.port1.onmessage = (event) => {
+                if (event.data.success) {
+                    resolve(event.data);
+                } else {
+                    reject(new Error(event.data.error || 'Error en sync manual'));
+                }
+            };
+
+            navigator.serviceWorker.controller.postMessage(
+                { type: 'FORCE_SYNC' },
+                [messageChannel.port2]
+            );
+
+            // Timeout de 30 segundos
+            setTimeout(() => reject(new Error('Timeout en sync manual')), 30000);
+        });
+
+        console.log('[PWA] ✅ Sync manual completado');
+    } catch (error) {
+        console.error('[PWA] ❌ Error en sync manual:', error);
     }
 }
 
@@ -309,9 +400,7 @@ async function initPWA() {
         }
 
         // 4. Inicializar características de sync
-        if (swRegistration) {
-            initSyncFeatures();
-        }
+        initSyncFeatures();
 
         // 5. Verificar conectividad inicial
         checkInitialConnectivity();
@@ -334,5 +423,6 @@ export {
     registerServiceWorker,
     showInstallPrompt,
     requestNotificationPermission,
-    showToast
+    showToast,
+    forceSyncManually
 };

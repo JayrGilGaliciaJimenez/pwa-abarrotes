@@ -50,4 +50,9 @@ public class ProductController {
         return productService.deleteProduct(uuid);
     }
 
+    @GetMapping("/findByStore/{uuid}")
+    public ResponseEntity<Object> findProductByStore(@PathVariable("uuid") UUID uuid){
+        return productService.findProductByStore(uuid);
+    }
+
 }

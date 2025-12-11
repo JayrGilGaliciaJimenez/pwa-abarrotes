@@ -131,8 +131,8 @@ public class UserService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
                 .build();
-        userRepository.save(user);
-        var jwtToken = jwtService.generateToken(user);
+
+        var jwtToken = jwtService.generateToken(user, user.getUuid());
         return Utilities.authResponse(HttpStatus.OK, "User registered successfully", jwtToken);
     }
 

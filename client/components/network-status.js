@@ -166,72 +166,19 @@ class NetworkStatusComponent {
     render() {
         if (!this.container) return;
 
-        const statusClass = this.getStatusClass();
-        const statusText = this.getStatusText();
-        const statusIcon = this.getStatusIcon();
+        // SOLO mostrar el badge si hay algo importante:
+        // - Está offline
+        // - Está sincronizando
+        // - Hay cambios pendientes
+        const shouldShow = !this.isOnline || this.isSyncing || this.pendingCount > 0;
 
-        this.container.innerHTML = `
-            <div class="network-status-widget">
-                <button
-                    class="btn btn-sm ${statusClass} position-relative"
-                    id="network-status-btn"
-                    title="Estado de conexión"
-                >
-                    <i class="${statusIcon} me-1"></i>
-                    ${statusText}
-                    ${this.pendingCount > 0 ? `
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                            ${this.pendingCount}
-                            <span class="visually-hidden">cambios pendientes</span>
-                        </span>
-                    ` : ''}
-                </button>
-            </div>
+        if (!shouldShow) {
+            // Si está online y sin problemas, no mostrar nada
+            this.container.innerHTML = '';
+            return;
+        }
 
-            <!-- Modal de operaciones pendientes -->
-            <div class="modal fade" id="networkStatusModal" tabindex="-1" aria-labelledby="networkStatusModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="networkStatusModalLabel">
-                                <i class="bi bi-cloud-arrow-up me-2"></i>
-                                Estado de Sincronización
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body" id="networkStatusModalBody">
-                            <div class="text-center">
-                                <div class="spinner-border" role="status">
-                                    <span class="visually-hidden">Cargando...</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                            ${this.pendingCount > 0 && this.isOnline ? `
-                                <button type="button" class="btn btn-primary" id="retrySyncBtn">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>
-                                    Sincronizar Ahora
-                                </button>
-                            ` : ''}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Toast de notificaciones -->
-            <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
-                <div id="networkStatusToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="toast-header">
-                        <strong class="me-auto">Sincronización</strong>
-                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                    <div class="toast-body" id="networkStatusToastBody">
-                        <!-- Mensaje dinámico -->
-                    </div>
-                </div>
-            </div>
-        `;
+        
 
         // Agregar estilos
         this.injectStyles();
@@ -258,114 +205,7 @@ class NetworkStatusComponent {
     /**
      * Muestra el modal con detalles de sincronización
      */
-    async showModal() {
-        const modal = new bootstrap.Modal(document.getElementById('networkStatusModal'));
-        const modalBody = document.getElementById('networkStatusModalBody');
-
-        modal.show();
-
-        try {
-            const summary = await getPendingOperationsSummary();
-            const syncStatus = await getSyncStatus();
-
-            modalBody.innerHTML = this.renderModalContent(summary, syncStatus);
-        } catch (error) {
-            modalBody.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Error cargando detalles: ${error.message}
-                </div>
-            `;
-        }
-    }
-
-    /**
-     * Renderiza el contenido del modal
-     */
-    renderModalContent(summary, syncStatus) {
-        if (summary.total === 0) {
-            return `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle me-2"></i>
-                    ¡Todo sincronizado! No hay cambios pendientes.
-                </div>
-            `;
-        }
-
-        return `
-            <div class="row mb-3">
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">${summary.total}</h5>
-                            <p class="card-text text-muted">Total Pendientes</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">${summary.byStatus.pending}</h5>
-                            <p class="card-text text-muted">En Cola</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h5 class="card-title">${summary.byStatus.failed}</h5>
-                            <p class="card-text text-muted">Fallidas</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <h6 class="mb-3">Operaciones por Entidad</h6>
-            <ul class="list-group mb-3">
-                ${summary.byEntity.product > 0 ? `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-box me-2"></i>Productos</span>
-                        <span class="badge bg-primary rounded-pill">${summary.byEntity.product}</span>
-                    </li>
-                ` : ''}
-                ${summary.byEntity.store > 0 ? `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-shop me-2"></i>Tiendas</span>
-                        <span class="badge bg-primary rounded-pill">${summary.byEntity.store}</span>
-                    </li>
-                ` : ''}
-            </ul>
-
-            <h6 class="mb-3">Operaciones por Tipo</h6>
-            <ul class="list-group">
-                ${summary.byType.create > 0 ? `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-plus-circle me-2 text-success"></i>Crear</span>
-                        <span class="badge bg-success rounded-pill">${summary.byType.create}</span>
-                    </li>
-                ` : ''}
-                ${summary.byType.update > 0 ? `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-pencil me-2 text-warning"></i>Actualizar</span>
-                        <span class="badge bg-warning rounded-pill">${summary.byType.update}</span>
-                    </li>
-                ` : ''}
-                ${summary.byType.delete > 0 ? `
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-trash me-2 text-danger"></i>Eliminar</span>
-                        <span class="badge bg-danger rounded-pill">${summary.byType.delete}</span>
-                    </li>
-                ` : ''}
-            </ul>
-
-            ${!syncStatus.isOnline ? `
-                <div class="alert alert-warning mt-3">
-                    <i class="bi bi-wifi-off me-2"></i>
-                    Sin conexión. Los cambios se sincronizarán automáticamente cuando vuelva la conexión.
-                </div>
-            ` : ''}
-        `;
-    }
+    
 
     /**
      * Maneja el reintentar sincronización

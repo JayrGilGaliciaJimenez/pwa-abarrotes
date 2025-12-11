@@ -40,6 +40,7 @@ services:
       - "8082:82"
     volumes:
       - certbot-certs:/etc/letsencrypt:ro
+      - ./server/qr:/app/qr
 
   client:
     build:

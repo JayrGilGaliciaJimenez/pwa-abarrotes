@@ -3,8 +3,17 @@
  * Maneja cache/sync de productos, tiendas y usuarios (repartidores)
  */
 
-// Usar BASE_URL de properties.js si está disponible, sino usar fallback
-const BACKEND_URL = window.BASE_URL || "http://localhost:82/api/v1";
+// Resolver BASE_URL usando variables definidas en runtime o fallback local
+const BACKEND_URL = (() => {
+  if (window.BASE_URL) {
+    return window.BASE_URL;
+  }
+  const fallbackBase =
+    (window.__ENV && window.__ENV.API_BASE_URL) ||
+    window.API_BASE_URL ||
+    "http://localhost:82";
+  return `${fallbackBase.replace(/\/+$/, "")}/api/v1`;
+})();
 
 class HybridSyncService {
   constructor() {

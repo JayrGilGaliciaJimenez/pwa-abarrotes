@@ -28,7 +28,8 @@ class AdminNavbar {
         return path.includes('/admin/') ||
                path.includes('/products/') ||
                path.includes('/stores/') ||
-               path.includes('/drivers/')
+               path.includes('/drivers/') ||
+               path.includes('/routes/')
     }
 
     getCurrentPage() {
@@ -38,6 +39,7 @@ class AdminNavbar {
         if (path.includes('products.html')) return 'products';
         if (path.includes('stores.html')) return 'stores';
         if (path.includes('drivers.html')) return 'drivers';
+        if (path.includes('routes.html')) return 'routes';
 
         return '';
     }
@@ -69,6 +71,10 @@ class AdminNavbar {
                         <a href="../drivers/drivers.html" class="nav-link ${this.currentPage === 'drivers' ? 'active' : ''}">
                             <i class="bi bi-person-badge"></i>
                             <span>Repartidores</span>
+                        </a>
+                        <a href="../routes/routes.html" class="nav-link ${this.currentPage === 'routes' ? 'active' : ''}">
+                            <i class="bi bi-map"></i>
+                            <span>Rutas</span>
                         </a>
                     </div>
 
@@ -110,6 +116,10 @@ class AdminNavbar {
                     <a href="../drivers/drivers.html" class="mobile-nav-link ${this.currentPage === 'drivers' ? 'active' : ''}">
                         <i class="bi bi-person-badge"></i>
                         <span>Repartidores</span>
+                    </a>
+                    <a href="../routes/routes.html" class="mobile-nav-link ${this.currentPage === 'routes' ? 'active' : ''}">
+                        <i class="bi bi-map"></i>
+                        <span>Rutas</span>
                     </a>
                 </div>
             </nav>

@@ -279,6 +279,18 @@ class QROfflineService {
     try {
       console.log(`[QROffline] 🔄 Sincronizando visita ${visit._id}...`);
 
+      // Marcar como sincronizando para evitar duplicados
+      const syncingDoc = {
+        ...visit,
+        status: 'syncing',
+        syncingAt: new Date().toISOString()
+      };
+      const syncingResult = await this.dbVisits.put(syncingDoc);
+      visit = {
+        ...syncingDoc,
+        _rev: syncingResult.rev
+      };
+
       // Preparar FormData
       const formData = new FormData();
       formData.append('userUuid', visit.userUuid);
@@ -313,12 +325,19 @@ class QROfflineService {
       console.log(`[QROffline] ✅ Visita ${visit._id} sincronizada exitosamente`);
 
       // Marcar como sincronizada
-      await this.dbVisits.put({
+      const syncedResult = await this.dbVisits.put({
         ...visit,
         status: 'synced',
         syncedAt: new Date().toISOString(),
         serverResponse: result
       });
+      visit = {
+        ...visit,
+        _rev: syncedResult.rev,
+        status: 'synced',
+        syncedAt: new Date().toISOString(),
+        serverResponse: result
+      };
 
       return { success: true, result };
 
@@ -326,12 +345,21 @@ class QROfflineService {
       console.error(`[QROffline] ❌ Error al sincronizar visita ${visit._id}:`, error);
 
       // Incrementar contador de intentos
-      await this.dbVisits.put({
+      const rollbackResult = await this.dbVisits.put({
         ...visit,
+        status: 'pending',
         syncAttempts: (visit.syncAttempts || 0) + 1,
         lastSyncError: error.message,
         lastSyncAttempt: new Date().toISOString()
       });
+      visit = {
+        ...visit,
+        _rev: rollbackResult.rev,
+        status: 'pending',
+        syncAttempts: (visit.syncAttempts || 0) + 1,
+        lastSyncError: error.message,
+        lastSyncAttempt: new Date().toISOString()
+      };
 
       return { success: false, error: error.message };
     }

@@ -12,7 +12,7 @@
  */
 
 
-const CACHE_NAME = 'abarrotes-hybrid-v4'; // Nueva versión para Background Sync
+const CACHE_NAME = 'abarrotes-hybrid-v5'; // Nueva versión con store-visit offline
 const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v1';
 const PENDING_REQUESTS_STORE = 'pending-requests';
 const DB_NAME = 'pwa-offline-requests';
@@ -187,11 +187,13 @@ const APP_SHELL = [
     // Dashboards
     '/pages/admin/dashboard.html',
     '/pages/delivery_man/dashboard.html',
+    '/pages/delivery_man/store-visit.html',
     '/pages/drivers/drivers.html',
     '/pages/routes/routes.html',
 
     // JavaScript - Servicios PWA (CRÍTICOS para offline con Hybrid Sync)
     '/services/sync-pouchdb-service.js',
+    '/services/qr-offline-service.js',
     '/components/network-status.js',
     '/components/admin-navbar.js',
     '/utils/auth-guard.js',
@@ -202,6 +204,7 @@ const APP_SHELL = [
     '/pages/stores/store.js',
     '/pages/admin/dashboard.js',
     '/pages/delivery_man/dashboard.js',
+    '/pages/delivery_man/store-visit.js',
     '/pages/drivers/drivers.js',
     '/pages/routes/routes.js',
     '/pages/login/login.js',
@@ -211,10 +214,15 @@ const APP_SHELL = [
     '/components/admin-navbar.css',
     '/pages/login/login.css',
     '/pages/delivery_man/dashboard.css',
+    '/pages/delivery_man/store-visit.css',
 
     // JavaScript - Bootstrap y configuración
     '/assets/bootstrap/js/bootstrap.js',
     '/properties.js',
+
+    // JavaScript - Librerías externas (CDN fallback)
+    'https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js',
+    'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js',
 
     // PWA Manifest
     '/manifest.json'

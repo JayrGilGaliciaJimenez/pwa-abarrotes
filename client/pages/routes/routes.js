@@ -194,6 +194,7 @@ function setupPhotoViewer(visit) {
     const container = document.getElementById('detailPhotoContainer');
     const viewButton = document.getElementById('btnViewPhoto');
     const photoPath = visit.photo;
+    const visitUuid = visit.uuid;
 
     if (!container || !viewButton) {
         return;
@@ -211,13 +212,15 @@ function setupPhotoViewer(visit) {
     viewButton.parentNode.replaceChild(clone, viewButton);
 
     clone.addEventListener('click', async () => {
-        const fullUrl = resolvePhotoUrl(photoPath);
+        const directEndpoint = visitUuid ? `${window.BASE_URL}/visits/${visitUuid}/photo` : null;
+        const fallbackUrl = photoPath ? resolvePhotoUrl(photoPath) : null;
+        const targetUrl = directEndpoint || fallbackUrl;
 
-        if (!fullUrl) {
+        if (!targetUrl) {
             Swal.fire({
                 icon: 'warning',
                 title: 'Foto no disponible',
-                text: 'No se pudo construir la URL de la foto.',
+                text: 'No se pudo determinar la ubicación de la foto.',
                 confirmButtonColor: '#0d6efd'
             });
             return;
@@ -233,7 +236,7 @@ function setupPhotoViewer(visit) {
         });
 
         try {
-            const photoUrl = await fetchPhotoWithAuth(fullUrl);
+            const photoUrl = await fetchPhotoWithAuth(targetUrl);
             loadingAlert.close();
 
             Swal.fire({

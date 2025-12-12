@@ -3,13 +3,15 @@ package mtzg.carlos.server.modules.visits;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -200,6 +202,40 @@ public class VisitService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while deleting the visit: " + e.getMessage());
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> getVisitPhoto(UUID uuid) {
+        try {
+            Optional<VisitModel> visitOpt = visitRepository.findByUuid(uuid);
+            if (visitOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            VisitModel visit = visitOpt.get();
+            String photoPath = visit.getPhoto();
+
+            if (photoPath == null || photoPath.isBlank()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            Path path = Paths.get(photoPath);
+            if (!Files.exists(path) || !Files.isRegularFile(path)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            byte[] data = Files.readAllBytes(path);
+            ByteArrayResource resource = new ByteArrayResource(data);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_JPEG)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "inline; filename=\"" + path.getFileName().toString() + "\"")
+                    .contentLength(data.length)
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

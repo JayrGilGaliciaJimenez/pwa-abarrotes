@@ -2,6 +2,8 @@ package mtzg.carlos.server.modules.visits;
 
 import java.util.UUID;
 
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,5 +47,10 @@ public class VisitController {
     @DeleteMapping("/{uuid}")
     public ResponseEntity<Object> deleteVisit(@PathVariable("uuid") UUID uuid) {
         return visitService.deleteVisit(uuid);
+    }
+
+    @GetMapping(value = "/{uuid}/photo", produces = MediaType.IMAGE_JPEG_VALUE)
+    public ResponseEntity<Resource> getVisitPhoto(@PathVariable("uuid") UUID uuid) {
+        return visitService.getVisitPhoto(uuid);
     }
 }

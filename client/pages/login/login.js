@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Redirigir al dashboard después de un breve delay
                     setTimeout(function() {
-                        window.location.href = dashboardUrl;
+                        window.location.replace(dashboardUrl);
                     }, 1500);
                 } else {
                     showMessage('Acceso denegado. No tienes permisos para acceder al sistema.', 'warning');

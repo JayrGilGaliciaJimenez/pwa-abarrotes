@@ -24,6 +24,7 @@ class HybridSyncService {
     this.dbAssignments = null;
     this.dbUsers = null;
     this.dbStoreProducts = null;
+    this.dbVisits = null;
     this.isInitialized = false;
 
     console.log("[HybridSync] Servicio creado");
@@ -40,10 +41,11 @@ class HybridSyncService {
       this.dbAssignments = new PouchDB("assignments");
       this.dbUsers = new PouchDB("users");
       this.dbStoreProducts = new PouchDB("store_products");
+      this.dbVisits = new PouchDB("visits");
       this.isInitialized = true;
 
       console.log(
-        "[HybridSync] ✅ PouchDB inicializado (productos, tiendas, asignaciones y usuarios)",
+        "[HybridSync] ✅ PouchDB inicializado (productos, tiendas, asignaciones, usuarios y visitas)",
       );
 
       // Setup auto-sync cuando vuelva conexión
@@ -1606,6 +1608,120 @@ class HybridSyncService {
   }
 
   // ==========================================
+  // VISITS (RUTAS/VISITAS) - HISTORIAL
+  // ==========================================
+
+  /**
+   * Obtener todas las visitas (historial)
+   * - Con internet: GET al backend + cachea en PouchDB
+   * - Sin internet: Lee de PouchDB
+   */
+  async getAllVisits() {
+    console.log("[HybridSync] 🚚 Obteniendo historial de visitas...");
+    console.log(
+      "[HybridSync] Estado de conexión:",
+      navigator.onLine ? "🟢 Online" : "🔴 Offline",
+    );
+
+    if (navigator.onLine) {
+      try {
+        console.log("[HybridSync] 🌐 Solicitando visitas al BACKEND...");
+        const response = await fetch(`${BACKEND_URL}/visits`, {
+          method: "GET",
+          headers: this.getHeaders(),
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseData = await response.json();
+        const visits = responseData.data || [];
+        console.log(
+          `[HybridSync] ✅ ${visits.length} visitas obtenidas del backend`,
+        );
+
+        // Cachear en PouchDB
+        await this.cacheVisitsInPouchDB(visits);
+
+        return visits;
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Error al conectar con backend, usando caché:",
+          error.message,
+        );
+        return await this.loadVisitsFromCache();
+      }
+    } else {
+      // Sin internet, cargar desde caché
+      console.log("[HybridSync] 📴 SIN INTERNET - Cargando desde caché...");
+      return await this.loadVisitsFromCache();
+    }
+  }
+
+  /**
+   * Cachear visitas del backend en PouchDB
+   */
+  async cacheVisitsInPouchDB(visits) {
+    try {
+      console.log("[HybridSync] 💾 Cacheando visitas en PouchDB...");
+
+      for (const visit of visits) {
+        const doc = {
+          _id: visit.uuid || `visit_${visit.id}`, // Asegurar ID único
+          ...visit,
+          cachedAt: new Date().toISOString(),
+        };
+
+        try {
+          const existing = await this.dbVisits.get(doc._id);
+          doc._rev = existing._rev;
+          await this.dbVisits.put(doc);
+        } catch (err) {
+          if (err.status === 404) {
+            await this.dbVisits.put(doc);
+          } else {
+            console.error(
+              `[HybridSync] Error al guardar visita ${doc._id}:`,
+              err,
+            );
+          }
+        }
+      }
+
+      console.log("[HybridSync] ✅ Visitas cacheadas correctamente");
+    } catch (error) {
+      console.error("[HybridSync] ❌ Error al cachear visitas:", error);
+    }
+  }
+
+  /**
+   * Cargar visitas desde caché local (PouchDB)
+   */
+  async loadVisitsFromCache() {
+    try {
+      console.log("[HybridSync] 📂 Cargando visitas desde CACHÉ (PouchDB)...");
+
+      const result = await this.dbVisits.allDocs({
+        include_docs: true,
+        descending: true,
+      });
+
+      const visits = result.rows
+        .filter((row) => !row.id.startsWith("_design/"))
+        .map((row) => row.doc);
+
+      console.log(
+        `[HybridSync] ✅ ${visits.length} visitas cargadas desde caché`,
+      );
+      return visits;
+    } catch (error) {
+      console.error("[HybridSync] ❌ Error al cargar desde caché:", error);
+      return [];
+    }
+  }
+
+  // ==========================================
   // AUTO-SYNC
   // ==========================================
 
@@ -2215,12 +2331,14 @@ class HybridSyncService {
       await this.dbProducts.destroy();
       await this.dbStores.destroy();
       await this.dbUsers.destroy();
+      await this.dbVisits.destroy();
 
       // 2. REINICIALIZAR bases de datos limpias
       console.log("[HybridSync] 📦 Reinicializando bases de datos...");
       this.dbProducts = new PouchDB("products");
       this.dbStores = new PouchDB("stores");
       this.dbUsers = new PouchDB("users");
+      this.dbVisits = new PouchDB("visits");
 
       // 3. OBTENER datos frescos del backend
       console.log("[HybridSync] 🌐 Obteniendo datos frescos del backend...");
@@ -2296,6 +2414,30 @@ class HybridSyncService {
         );
       }
 
+      // GET Visitas
+      try {
+        const visitsResponse = await fetch(`${BACKEND_URL}/visits`, {
+          method: "GET",
+          headers: this.getHeaders(),
+        });
+
+        if (visitsResponse.ok) {
+          const visitsData = await visitsResponse.json();
+          const visits = visitsData.data || [];
+          console.log(
+            `[HybridSync] ✅ ${visits.length} visitas obtenidas del backend`,
+          );
+
+          // Cachear visitas
+          await this.cacheVisitsInPouchDB(visits);
+        }
+      } catch (error) {
+        console.warn(
+          "[HybridSync] ⚠️ Error al obtener visitas:",
+          error.message,
+        );
+      }
+
       console.log(
         "[HybridSync] ✨ Caché refrescado exitosamente desde el backend",
       );
@@ -2308,6 +2450,7 @@ class HybridSyncService {
         this.dbUsers = new PouchDB("users");
         this.dbAssignments = new PouchDB("assignments");
         this.dbStoreProducts = new PouchDB("store_products");
+        this.dbVisits = new PouchDB("visits");
       } catch (e) {
         console.error("[HybridSync] ❌ Error crítico al reinicializar:", e);
       }
@@ -2324,8 +2467,9 @@ class HybridSyncService {
       await this.dbAssignments.destroy();
       await this.dbUsers.destroy();
       await this.dbStoreProducts.destroy();
+      await this.dbVisits.destroy();
       console.log(
-        "[HybridSync] 🗑️ Bases de datos limpiadas (productos, tiendas, asignaciones y usuarios)",
+        "[HybridSync] 🗑️ Bases de datos limpiadas (productos, tiendas, asignaciones, usuarios y visitas)",
       );
       // Reinicializar
       await this.initialize();

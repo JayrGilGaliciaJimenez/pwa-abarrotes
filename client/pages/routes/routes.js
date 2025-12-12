@@ -184,6 +184,108 @@ window.openVisitDetails = function(index) {
         `;
     }
 
+    setupPhotoViewer(visit);
+
     // Mostrar modal
     visitDetailsModal.show();
 };
+
+function setupPhotoViewer(visit) {
+    const container = document.getElementById('detailPhotoContainer');
+    const viewButton = document.getElementById('btnViewPhoto');
+    const photoPath = visit.photo;
+
+    if (!container || !viewButton) {
+        return;
+    }
+
+    if (!photoPath) {
+        container.classList.add('d-none');
+        viewButton.replaceWith(viewButton.cloneNode(true));
+        return;
+    }
+
+    container.classList.remove('d-none');
+
+    const clone = viewButton.cloneNode(true);
+    viewButton.parentNode.replaceChild(clone, viewButton);
+
+    clone.addEventListener('click', async () => {
+        const fullUrl = resolvePhotoUrl(photoPath);
+
+        if (!fullUrl) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Foto no disponible',
+                text: 'No se pudo construir la URL de la foto.',
+                confirmButtonColor: '#0d6efd'
+            });
+            return;
+        }
+
+        const loadingAlert = Swal.fire({
+            title: 'Cargando foto...',
+            didOpen: () => {
+                Swal.showLoading();
+            },
+            allowOutsideClick: false,
+            allowEscapeKey: false
+        });
+
+        try {
+            const photoUrl = await fetchPhotoWithAuth(fullUrl);
+            loadingAlert.close();
+
+            Swal.fire({
+                title: 'Foto de la visita',
+                imageUrl: photoUrl,
+                imageAlt: 'Foto de la visita',
+                showCloseButton: true,
+                confirmButtonColor: '#0d6efd'
+            }).then(() => {
+                URL.revokeObjectURL(photoUrl);
+            });
+        } catch (error) {
+            loadingAlert.close();
+            console.error('[Routes] Error al cargar foto:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error al cargar foto',
+                text: 'No se pudo mostrar la evidencia. Intenta nuevamente.',
+                confirmButtonColor: '#dc3545'
+            });
+        }
+    });
+}
+
+function resolvePhotoUrl(path) {
+    if (!path) {
+        return null;
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+        return path;
+    }
+
+    const base = window.API_BASE_URL || window.location.origin;
+    const normalizedBase = base.replace(/\/+$/, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${normalizedBase}${normalizedPath}`;
+}
+
+async function fetchPhotoWithAuth(url) {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const response = await fetch(url, {
+        headers,
+        cache: 'no-store'
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+}

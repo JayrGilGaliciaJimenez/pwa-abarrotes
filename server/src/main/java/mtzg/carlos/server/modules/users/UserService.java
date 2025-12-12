@@ -132,6 +132,7 @@ public class UserService {
                 .role(request.getRole())
                 .build();
 
+        userRepository.save(user);
         var jwtToken = jwtService.generateToken(user, user.getUuid());
         return Utilities.authResponse(HttpStatus.OK, "User registered successfully", jwtToken);
     }

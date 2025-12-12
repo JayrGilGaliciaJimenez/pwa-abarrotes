@@ -20,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.products.IProductRepository;
+import mtzg.carlos.server.modules.products.ProductModel;
 import mtzg.carlos.server.modules.products.dto.ProductResponseDto;
 import mtzg.carlos.server.modules.stores.dto.StoreRegisterDto;
 import mtzg.carlos.server.modules.stores.dto.StoreResponseDto;
@@ -35,6 +37,7 @@ public class StoreService {
 
     private final IStoreRepository storeRepository;
     private final IUserRepository userRepository;
+    private final IProductRepository productRepository;
 
     @Value("${qr.content.path}")
     private String qrContentPath;
@@ -175,12 +178,32 @@ public class StoreService {
             }
             StoreModel store = storeOpt.get();
 
-            if ((store.getVisits() != null && !store.getVisits().isEmpty()) ||
-                    (store.getProducts() != null && !store.getProducts().isEmpty()) ||
-                    (store.getUsers() != null && !store.getUsers().isEmpty())) {
+            if (store.getVisits() != null && !store.getVisits().isEmpty()) {
                 return Utilities.simpleResponse(HttpStatus.CONFLICT,
-                        "Store cannot be deleted as it has associated data.");
+                        "Store cannot be deleted as it has associated visits.");
             }
+
+            // Desasociar productos
+            if (store.getProducts() != null && !store.getProducts().isEmpty()) {
+                for (ProductModel product : store.getProducts()) {
+                    if (product.getStores() != null && product.getStores().remove(store)) {
+                        productRepository.save(product);
+                    }
+                }
+                store.getProducts().clear();
+            }
+
+            // Desasociar repartidores
+            if (store.getUsers() != null && !store.getUsers().isEmpty()) {
+                for (UserModel user : store.getUsers()) {
+                    if (user.getStores() != null && user.getStores().remove(store)) {
+                        userRepository.save(user);
+                    }
+                }
+                store.getUsers().clear();
+            }
+
+            storeRepository.save(store);
             storeRepository.delete(store);
             return Utilities.simpleResponse(HttpStatus.OK, "Store deleted successfully");
         } catch (Exception e) {

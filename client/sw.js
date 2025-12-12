@@ -204,6 +204,7 @@ const APP_SHELL = [
 
     // JavaScript - Servicios PWA (CRÍTICOS para offline con Hybrid Sync)
     '/services/sync-pouchdb-service.js',
+    '/services/qr-offline-service.js',
     '/components/network-status.js',
     '/components/admin-navbar.js',
     '/utils/auth-guard.js',
@@ -229,6 +230,10 @@ const APP_SHELL = [
     // JavaScript - Bootstrap y configuración
     '/assets/bootstrap/js/bootstrap.js',
     '/properties.js',
+
+    // JavaScript - Librerías externas (CDN fallback)
+    'https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js',
+    'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js',
 
     // PWA Manifest
     '/manifest.json'

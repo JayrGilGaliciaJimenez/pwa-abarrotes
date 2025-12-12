@@ -4,7 +4,7 @@
  */
 
 // Esperar a que el DOM esté completamente cargado
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     const storesListContainer = document.getElementById('storesListContainer');
     const deliveryManNameElement = document.getElementById('deliveryManName');
     const logoutBtn = document.getElementById('logoutBtn');
@@ -14,6 +14,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let html5QrCode = null;
     let storesToVisit = []; // Se cargará desde el API
+
+    // Inicializar QROfflineService para sincronización automática
+    console.log('[Dashboard] Inicializando QROfflineService...');
+    try {
+        await qrOfflineService.initialize();
+        console.log('[Dashboard] QROfflineService inicializado correctamente');
+    } catch (error) {
+        console.error('[Dashboard] Error al inicializar QROfflineService:', error);
+    }
 
     /**
      * Obtiene el UUID del usuario desde el token JWT en localStorage
@@ -127,10 +136,39 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
+     * Extrae el UUID de la tienda desde la URL del QR
+     * @param {string} qrData - URL del endpoint (ej: https://api.com/api/v1/stores/uuid-aqui)
+     * @returns {string|null} - UUID extraído o null
+     */
+    function extractStoreUuidFromQr(qrData) {
+        // Buscar el patrón /stores/ seguido de un UUID o ID
+        const match = qrData.match(/\/stores\/([a-zA-Z0-9-]+)/);
+        return match ? match[1] : null;
+    }
+
+    /**
+     * Busca una tienda en localStorage por su UUID
+     * @param {string} uuid - UUID de la tienda
+     * @returns {object|null} - Datos de la tienda o null
+     */
+    function findStoreInLocalStorage(uuid) {
+        try {
+            const stores = JSON.parse(localStorage.getItem('deliveryStores') || '[]');
+            return stores.find(function(store) {
+                return store.uuid === uuid || store._id === uuid || store.id === uuid;
+            }) || null;
+        } catch (e) {
+            console.error('Error al buscar tienda en localStorage:', e);
+            return null;
+        }
+    }
+
+    /**
      * Procesa el resultado del código QR escaneado
+     * Busca la tienda en localStorage (previamente guardada) en lugar de hacer fetch
      * @param {string} qrData - Datos del código QR (URL del endpoint de la tienda)
      */
-    async function handleQrResult(qrData) {
+    function handleQrResult(qrData) {
         const qrResultsElement = document.getElementById('qr-reader-results');
 
         // Validar que sea una URL válida de tienda
@@ -138,6 +176,18 @@ document.addEventListener('DOMContentLoaded', function() {
             qrResultsElement.innerHTML = `
                 <div class="alert alert-warning">
                     Código QR no válido. Escanea el QR de una tienda.
+                </div>
+            `;
+            return;
+        }
+
+        // Extraer el UUID de la URL del QR
+        const storeUuid = extractStoreUuidFromQr(qrData);
+
+        if (!storeUuid) {
+            qrResultsElement.innerHTML = `
+                <div class="alert alert-danger">
+                    No se pudo extraer el identificador de la tienda del código QR.
                 </div>
             `;
             return;
@@ -153,54 +203,36 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
 
-        try {
-            const token = localStorage.getItem('token'); // <-- obtiene el token
-            
-            const response = await fetch(qrData, {
-                headers: {
-                    'Authorization': `Bearer ${token}`, // <-- agrega token
-                    'Content-Type': 'application/json'
+        // Buscar la tienda en localStorage
+        const store = findStoreInLocalStorage(storeUuid);
+
+        if (store) {
+            // Guardar datos de la tienda en sessionStorage para la siguiente página
+            sessionStorage.setItem('currentStore', JSON.stringify(store));
+
+            qrResultsElement.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>Tienda encontrada:</strong> ${store.name}<br>
+                    Redirigiendo...
+                </div>
+            `;
+
+            // Cerrar modal y redirigir
+            setTimeout(function() {
+                const modal = bootstrap.Modal.getInstance(qrScannerModal);
+                if (modal) {
+                    modal.hide();
                 }
-            });
-            const result = await response.json();
-
-            if (response.ok && result.data) {
-                // Guardar datos de la tienda en sessionStorage para la siguiente página
-                sessionStorage.setItem('currentStore', JSON.stringify(result.data));
-
-                qrResultsElement.innerHTML = `
-                    <div class="alert alert-success">
-                        <strong>Tienda encontrada:</strong> ${result.data.name}<br>
-                        Redirigiendo...
-                    </div>
-                `;
-
-                // Cerrar modal y redirigir
-                setTimeout(function() {
-                    const modal = bootstrap.Modal.getInstance(qrScannerModal);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    window.location.href = './store-visit.html';
-                }, 1500);
-            } else {
-                qrResultsElement.innerHTML = `
-                    <div class="alert alert-danger">
-                        No se encontró la tienda. Intenta de nuevo.
-                    </div>
-                `;
-            }
-        } catch (error) {
-    console.error('Error al buscar tienda:', error);
-
-    qrResultsElement.innerHTML = `
-        <div class="alert alert-danger">
-            <p>Error de conexión. Verifica tu internet e intenta de nuevo.</p>
-            <pre>${JSON.stringify(error, Object.getOwnPropertyNames(error), 2)}</pre>
-        </div>
-    `;
-}
-
+                window.location.href = './store-visit.html';
+            }, 1500);
+        } else {
+            qrResultsElement.innerHTML = `
+                <div class="alert alert-danger">
+                    <p>Tienda no encontrada en tu ruta asignada.</p>
+                    <small class="text-muted">UUID: ${storeUuid}</small>
+                </div>
+            `;
+        }
     }
 
     // Evento para abrir el modal y comenzar a escanear
@@ -270,6 +302,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const result = await response.json();
             storesToVisit = result.data || [];
+
+            // Guardar tiendas en localStorage para acceso offline y validación de QR
+            localStorage.setItem('deliveryStores', JSON.stringify(storesToVisit));
 
             // Cargar lista de tiendas en el DOM
             loadStoresList();
@@ -413,6 +448,68 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 150);
             }
         }, 5000);
+    }
+
+    // Listener para sincronización cuando regresa la conexión
+    window.addEventListener('online', async function() {
+        console.log('[Dashboard] 🟢 Conexión restaurada, verificando visitas pendientes...');
+
+        try {
+            // Esperar 2 segundos para que la conexión se estabilice
+            setTimeout(async function() {
+                if (qrOfflineService && qrOfflineService.isInitialized) {
+                    const stats = await qrOfflineService.getCacheStats();
+
+                    if (stats.pendingVisits > 0) {
+                        console.log(`[Dashboard] 📤 ${stats.pendingVisits} visitas pendientes, sincronizando...`);
+
+                        // Mostrar mensaje al usuario
+                        showMessage(`Sincronizando ${stats.pendingVisits} visita(s) pendiente(s)...`, 'info');
+
+                        const result = await qrOfflineService.syncAllPendingVisits();
+
+                        if (result.success && result.synced > 0) {
+                            console.log(`[Dashboard] ✅ ${result.synced} visitas sincronizadas exitosamente`);
+
+                            // Mostrar mensaje de éxito
+                            showMessage(`✅ ${result.synced} visita(s) sincronizada(s) exitosamente`, 'success');
+
+                            // Recargar la lista de tiendas para actualizar estado
+                            loadStoresForToday();
+                        } else if (result.failed > 0) {
+                            console.warn(`[Dashboard] ⚠️ ${result.failed} visitas fallaron al sincronizar`);
+                            showMessage(`⚠️ ${result.failed} visita(s) no se pudieron sincronizar`, 'warning');
+                        }
+                    } else {
+                        console.log('[Dashboard] ✅ No hay visitas pendientes para sincronizar');
+                    }
+                }
+            }, 2000);
+        } catch (error) {
+            console.error('[Dashboard] Error al sincronizar visitas:', error);
+        }
+    });
+
+    // Verificar visitas pendientes al cargar la página (si hay conexión)
+    if (navigator.onLine && qrOfflineService && qrOfflineService.isInitialized) {
+        setTimeout(async function() {
+            try {
+                const stats = await qrOfflineService.getCacheStats();
+                if (stats.pendingVisits > 0) {
+                    console.log(`[Dashboard] 📋 ${stats.pendingVisits} visitas pendientes detectadas al cargar`);
+                    console.log('[Dashboard] 🔄 Intentando sincronizar automáticamente...');
+
+                    const result = await qrOfflineService.syncAllPendingVisits();
+
+                    if (result.success && result.synced > 0) {
+                        showMessage(`✅ ${result.synced} visita(s) sincronizada(s) automáticamente`, 'success');
+                        loadStoresForToday();
+                    }
+                }
+            } catch (error) {
+                console.error('[Dashboard] Error al verificar visitas pendientes:', error);
+            }
+        }, 3000);
     }
 
     // Inicializar el dashboard

@@ -42,6 +42,7 @@ function verificarAutenticacion() {
     }
 
     console.log('[AuthGuard] ✅ Usuario autenticado correctamente');
+    lockBackNavigation();
     return true;
 }
 
@@ -135,7 +136,33 @@ export function logout() {
     console.log('[AuthGuard] Cerrando sesión...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    window.__PWA_BACK_GUARD = false;
     redirigirAlLogin();
+}
+
+function lockBackNavigation() {
+    if (window.__PWA_BACK_GUARD) {
+        return;
+    }
+
+    window.__PWA_BACK_GUARD = true;
+
+    try {
+        history.replaceState({ locked: true }, document.title, window.location.href);
+        history.pushState({ locked: true }, document.title, window.location.href);
+
+        window.addEventListener('popstate', () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.__PWA_BACK_GUARD = false;
+                return;
+            }
+
+            history.pushState({ locked: true }, document.title, window.location.href);
+        });
+    } catch (error) {
+        console.warn('[AuthGuard] No se pudo bloquear el botón atrás:', error);
+    }
 }
 
 // Ejecutar verificación inmediatamente al cargar el script

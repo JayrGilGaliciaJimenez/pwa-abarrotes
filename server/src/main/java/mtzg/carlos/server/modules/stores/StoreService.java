@@ -1,20 +1,33 @@
 package mtzg.carlos.server.modules.stores;
 
-import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
-import mtzg.carlos.server.modules.users.IUserRepository;
-import mtzg.carlos.server.modules.users.UserModel;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.RequiredArgsConstructor;
+import mtzg.carlos.server.modules.products.IProductRepository;
+import mtzg.carlos.server.modules.products.ProductModel;
 import mtzg.carlos.server.modules.products.dto.ProductResponseDto;
 import mtzg.carlos.server.modules.stores.dto.StoreRegisterDto;
 import mtzg.carlos.server.modules.stores.dto.StoreResponseDto;
 import mtzg.carlos.server.modules.stores.dto.StoreUpdateDto;
+import mtzg.carlos.server.modules.users.IUserRepository;
+import mtzg.carlos.server.modules.users.UserModel;
 import mtzg.carlos.server.utils.QrUtils;
 import mtzg.carlos.server.utils.Utilities;
 
@@ -24,6 +37,7 @@ public class StoreService {
 
     private final IStoreRepository storeRepository;
     private final IUserRepository userRepository;
+    private final IProductRepository productRepository;
 
     @Value("${qr.content.path}")
     private String qrContentPath;
@@ -164,12 +178,32 @@ public class StoreService {
             }
             StoreModel store = storeOpt.get();
 
-            if ((store.getVisits() != null && !store.getVisits().isEmpty()) ||
-                    (store.getProducts() != null && !store.getProducts().isEmpty()) ||
-                    (store.getUsers() != null && !store.getUsers().isEmpty())) {
+            if (store.getVisits() != null && !store.getVisits().isEmpty()) {
                 return Utilities.simpleResponse(HttpStatus.CONFLICT,
-                        "Store cannot be deleted as it has associated data.");
+                        "Store cannot be deleted as it has associated visits.");
             }
+
+            // Desasociar productos
+            if (store.getProducts() != null && !store.getProducts().isEmpty()) {
+                for (ProductModel product : store.getProducts()) {
+                    if (product.getStores() != null && product.getStores().remove(store)) {
+                        productRepository.save(product);
+                    }
+                }
+                store.getProducts().clear();
+            }
+
+            // Desasociar repartidores
+            if (store.getUsers() != null && !store.getUsers().isEmpty()) {
+                for (UserModel user : store.getUsers()) {
+                    if (user.getStores() != null && user.getStores().remove(store)) {
+                        userRepository.save(user);
+                    }
+                }
+                store.getUsers().clear();
+            }
+
+            storeRepository.save(store);
             storeRepository.delete(store);
             return Utilities.simpleResponse(HttpStatus.OK, "Store deleted successfully");
         } catch (Exception e) {
@@ -212,6 +246,38 @@ public class StoreService {
         } catch (Exception e) {
             return Utilities.simpleResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     "An error occurred while fetching stores for the user: " + e.getMessage());
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ResponseEntity<Resource> getStoreQr(UUID uuid) {
+        try {
+            Optional<StoreModel> storeOpt = storeRepository.findByUuid(uuid);
+            if (storeOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            StoreModel store = storeOpt.get();
+            String qrCodePath = store.getQrCode();
+            if (qrCodePath == null || qrCodePath.isBlank()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            Path filePath = Paths.get(qrCodePath);
+            if (!Files.exists(filePath)) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+
+            byte[] data = Files.readAllBytes(filePath);
+            ByteArrayResource resource = new ByteArrayResource(data);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.IMAGE_PNG)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filePath.getFileName() + "\"")
+                    .contentLength(data.length)
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

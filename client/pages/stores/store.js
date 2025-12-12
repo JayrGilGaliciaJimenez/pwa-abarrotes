@@ -10,7 +10,12 @@ let currentStoreId = null;
 let storeModal = null;
 let deleteModal = null;
 let assignModal = null;
+let assignProductsModal = null;
+let storeDetailsModal = null;
 let syncService = null;
+let cachedProducts = [];
+let selectedProductUuids = new Set();
+let currentQrObjectUrl = null;
 
 // Inicialización cuando carga la página
 document.addEventListener('DOMContentLoaded', async function () {
@@ -23,6 +28,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     storeModal = new bootstrap.Modal(document.getElementById('storeModal'));
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
+    assignProductsModal = new bootstrap.Modal(document.getElementById('assignProductsModal'));
+    storeDetailsModal = new bootstrap.Modal(document.getElementById('storeDetailsModal'));
 
     // Cargar tiendas (GET)
     await loadStoresTable();
@@ -30,12 +37,20 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Event Listeners
     document.getElementById('btnSaveStore').addEventListener('click', saveStore);
     document.getElementById('btnSaveAssignment').addEventListener('click', saveAssignment);
+    document.getElementById('btnSaveProductAssignment').addEventListener('click', saveProductAssignment);
 
     document.getElementById('btnConfirmDelete').addEventListener('click', confirmDelete);
 
     // Limpiar formulario cuando se cierra el modal
     document.getElementById('storeModal').addEventListener('hidden.bs.modal', function () {
         resetForm();
+    });
+    document.getElementById('assignProductsModal').addEventListener('hidden.bs.modal', resetProductAssignmentModal);
+    document.getElementById('storeDetailsModal').addEventListener('hidden.bs.modal', () => {
+        if (currentQrObjectUrl) {
+            URL.revokeObjectURL(currentQrObjectUrl);
+            currentQrObjectUrl = null;
+        }
     });
 
     console.log('[Stores] ✅ Página inicializada correctamente');
@@ -159,6 +174,12 @@ function renderStoresTable() {
                     </button>
                     <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-action btn-primary" onclick='showStoreDetails("${storeId}")' title="Ver detalles y QR">
+                        <i class="bi bi-qr-code"></i>
+                    </button>
+                    <button class="btn btn-action btn-secondary" onclick='assignProductsToStore("${storeId}")' title="Asignar Productos">
+                        <i class="bi bi-boxes"></i>
                     </button>
                     <button class="btn btn-action btn-info" onclick='assignDriver("${storeId}")' title="Asignar Repartidor">
                         <i class="bi bi-person-plus"></i>
@@ -330,6 +351,229 @@ async function saveAssignment() {
         btnSave.disabled = false;
         btnSave.innerHTML = 'Asignar';
     }
+}
+
+async function assignProductsToStore(storeId) {
+    console.log(`[Stores] 📦 Asignar productos a tienda ID: ${storeId}`);
+    currentStoreId = storeId;
+    selectedProductUuids.clear();
+    updateProductSelectionCount();
+
+    const listContainer = document.getElementById('productAssignmentList');
+    listContainer.innerHTML = `
+        <div class="text-center text-muted py-3">
+            <i class="bi bi-arrow-repeat me-2"></i>Cargando productos...
+        </div>
+    `;
+
+    assignProductsModal.show();
+
+    try {
+        cachedProducts = await syncService.getAllProducts();
+        const usableProducts = (cachedProducts || []).filter(p => p && p.uuid);
+        renderProductChecklist(usableProducts);
+    } catch (error) {
+        console.error('[Stores] ❌ Error al cargar productos:', error);
+        listContainer.innerHTML = `
+            <div class="alert alert-danger mb-0">
+                Error al cargar productos. Intenta nuevamente.
+            </div>
+        `;
+        showToast('Error al cargar productos', 'error');
+    }
+}
+
+function renderProductChecklist(products) {
+    const listContainer = document.getElementById('productAssignmentList');
+
+    if (!products || products.length === 0) {
+        listContainer.innerHTML = `
+            <div class="text-center text-muted py-3">
+                No hay productos disponibles para asignar.
+            </div>
+        `;
+        return;
+    }
+
+    const sortedProducts = [...products].sort((a, b) => {
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+
+    listContainer.innerHTML = sortedProducts.map(product => {
+        const productUuid = product.uuid;
+        const description = product.description
+            ? `<small class="text-muted d-block">${escapeHtml(product.description)}</small>`
+            : '';
+        return `
+            <div class="form-check product-item">
+                <input class="form-check-input product-checkbox" type="checkbox" value="${productUuid}" id="product-${productUuid}">
+                <label class="form-check-label" for="product-${productUuid}">
+                    ${escapeHtml(product.name || 'Producto sin nombre')}
+                    ${description}
+                </label>
+            </div>
+        `;
+    }).join('');
+
+    listContainer.querySelectorAll('.product-checkbox').forEach(input => {
+        input.addEventListener('change', handleProductCheckboxChange);
+    });
+}
+
+function handleProductCheckboxChange(event) {
+    const { value, checked } = event.target;
+    if (!value) return;
+
+    if (checked) {
+        selectedProductUuids.add(value);
+    } else {
+        selectedProductUuids.delete(value);
+    }
+
+    updateProductSelectionCount();
+}
+
+function updateProductSelectionCount() {
+    const label = document.getElementById('productSelectionCount');
+    if (!label) return;
+    const count = selectedProductUuids.size;
+    const suffix = count === 1 ? '' : 's';
+    label.textContent = `${count} producto${suffix} seleccionado${suffix}`;
+}
+
+function resetProductAssignmentModal() {
+    selectedProductUuids.clear();
+    updateProductSelectionCount();
+    const listContainer = document.getElementById('productAssignmentList');
+    if (listContainer) {
+        listContainer.innerHTML = `
+            <div class="text-center text-muted">
+                Selecciona una tienda para cargar productos.
+            </div>
+        `;
+    }
+}
+
+async function saveProductAssignment() {
+    const btnSave = document.getElementById('btnSaveProductAssignment');
+
+    if (!currentStoreId) {
+        showToast('Selecciona una tienda válida', 'error');
+        return;
+    }
+
+    const selectedProducts = Array.from(selectedProductUuids);
+    if (selectedProducts.length === 0) {
+        showToast('Selecciona al menos un producto', 'error');
+        return;
+    }
+
+    btnSave.disabled = true;
+    btnSave.innerHTML = '<i class="bi bi-arrow-repeat me-2"></i>Asignando...';
+
+    try {
+        console.log(
+            `[Stores] 📦 Asignando ${selectedProducts.length} productos a tienda ${currentStoreId}`,
+        );
+
+        const result = await syncService.assignProductsToStore(currentStoreId, selectedProducts);
+
+        if (result.success) {
+            if (result.offline) {
+                showToast('Asignación guardada localmente (se sincronizará al volver la conexión)', 'warning');
+            } else {
+                showToast('Productos asignados correctamente', 'success');
+            }
+            assignProductsModal.hide();
+        } else {
+            throw new Error('Error al asignar productos');
+        }
+    } catch (error) {
+        console.error('[Stores] ❌ Error al asignar productos:', error);
+        showToast('Error al asignar productos: ' + error.message, 'error');
+    } finally {
+        btnSave.disabled = false;
+        btnSave.innerHTML = 'Asignar';
+    }
+}
+
+async function showStoreDetails(storeId) {
+    const store = stores.find(s => s.uuid === storeId || s._id === storeId);
+
+    if (!store) {
+        showToast('Tienda no encontrada', 'error');
+        return;
+    }
+
+    document.getElementById('detailStoreName').textContent = store.name || 'Sin nombre';
+    document.getElementById('detailStoreAddress').textContent = store.address || 'Sin dirección';
+    document.getElementById('detailStoreCoords').textContent =
+        `${store.latitude ?? '-'}, ${store.longitude ?? '-'}`;
+
+    const qrImg = document.getElementById('storeQrImage');
+    const qrPlaceholder = document.getElementById('storeQrPlaceholder');
+    qrImg.classList.add('d-none');
+    qrPlaceholder.classList.remove('d-none');
+
+    if (currentQrObjectUrl) {
+        URL.revokeObjectURL(currentQrObjectUrl);
+        currentQrObjectUrl = null;
+    }
+
+    const storeUuid = store.uuid;
+    if (storeUuid && navigator.onLine) {
+        const qrUrl = `${window.BASE_URL}/stores/${storeUuid}/qr`;
+        try {
+            const securedQrUrl = await fetchQrImageWithAuth(qrUrl);
+            if (securedQrUrl) {
+                qrImg.src = securedQrUrl;
+                qrImg.alt = `QR de ${store.name || 'tienda'}`;
+                qrImg.classList.remove('d-none');
+                qrPlaceholder.classList.add('d-none');
+                currentQrObjectUrl = securedQrUrl;
+            }
+        } catch (error) {
+            console.error('[Stores] ❌ Error al cargar el QR:', error);
+            qrImg.classList.add('d-none');
+            qrPlaceholder.classList.remove('d-none');
+        }
+    }
+
+    const productList = document.getElementById('storeProductsList');
+    const products = Array.isArray(store.products) ? store.products : [];
+
+    if (products.length === 0) {
+        productList.innerHTML = '<li class="list-group-item text-muted">Sin productos asignados</li>';
+    } else {
+        productList.innerHTML = products
+            .map(product => `
+                <li class="list-group-item">
+                    <strong>${escapeHtml(product.name || 'Producto')}</strong>
+                    ${product.description ? `<br><small class="text-muted">${escapeHtml(product.description)}</small>` : ''}
+                </li>
+            `)
+            .join('');
+    }
+
+    storeDetailsModal.show();
+}
+
+async function fetchQrImageWithAuth(url) {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await fetch(url, {
+        headers,
+        cache: 'no-store',
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
 }
 
 
@@ -543,6 +787,8 @@ window.loadStoresTable = loadStoresTable;
 window.editStore = editStore;
 window.deleteStore = deleteStore;
 window.assignDriver = assignDriver;
+window.assignProductsToStore = assignProductsToStore;
+window.showStoreDetails = showStoreDetails;
 window.stores = stores; // Para debugging
 
 console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, PUT, DELETE) con soporte offline/online');

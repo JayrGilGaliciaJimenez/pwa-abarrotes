@@ -29,7 +29,7 @@ class AdminNavbar {
                path.includes('/products/') ||
                path.includes('/stores/') ||
                path.includes('/drivers/') ||
-               path.includes('/routes/');
+               path.includes('/routes/')
     }
 
     getCurrentPage() {
@@ -255,7 +255,7 @@ class AdminNavbar {
         }, 1000);
     }
 
-   
+
 
 }
 

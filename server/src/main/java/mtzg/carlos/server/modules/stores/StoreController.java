@@ -2,6 +2,8 @@ package mtzg.carlos.server.modules.stores;
 
 import java.util.UUID;
 
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,5 +54,10 @@ public class StoreController {
     @GetMapping("/delivery-man/{uuid}")
     public ResponseEntity<Object> findByDeliveryMan(@PathVariable("uuid") UUID uuid){
         return storeService.findByDeliveryMan(uuid);
+    }
+
+    @GetMapping(value = "/{uuid}/qr", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<Resource> getStoreQr(@PathVariable("uuid") UUID uuid) {
+        return storeService.getStoreQr(uuid);
     }
 }

@@ -27,7 +27,7 @@
 <body>
     <div class="login-container">
         <div class="login-card">
-            <h2 class="login-title">Iniciar Sesión</h2>
+            <h2 class="login-title">Iniciar sesión</h2>
             <p class="text-center text-muted mb-4">Administradores y Repartidores</p>
 
             <form id="loginForm">
@@ -77,9 +77,9 @@
     <!-- PouchDB Service (Abstracción para CRUD) -->
     <script src="/services/pouchdb-service.js"></script>
 
-    <!-- Properties (BASE_URL) -->
-    <script src="./properties.js"></script>
+    <!-- Runtime env config debe cargarse antes de properties -->
     <script src="/env-config.js"></script>
+    <script src="./properties.js"></script>
 
     <!-- PWA Initialization (IMPORTANTE: Registra el Service Worker) -->
     <script type="module" src="/pwa-init.js"></script>

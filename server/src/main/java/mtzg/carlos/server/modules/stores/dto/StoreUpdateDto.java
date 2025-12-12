@@ -25,12 +25,8 @@ public class StoreUpdateDto {
     @Pattern(regexp = NO_ANGLE_BRACKETS_REGEX, message = NO_ANGLE_BRACKETS_MESSAGE)
     private String address;
 
-    @Min(value = -90, message = "Latitude must be between -90 and 90")
-    @Max(value = 90, message = "Latitude must be between -90 and 90")
     private Double latitude;
 
-    @Min(value = -180, message = "Longitude must be between -180 and 180")
-    @Max(value = 180, message = "Longitude must be between -180 and 180")
     private Double longitude;
 
     public void setName(String name) {

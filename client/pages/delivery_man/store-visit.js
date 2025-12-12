@@ -3,7 +3,7 @@
  * Muestra los datos de la tienda escaneada por QR
  */
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   const loadingState = document.getElementById("loadingState");
   const errorState = document.getElementById("errorState");
   const storeContent = document.getElementById("storeContent");
@@ -34,6 +34,15 @@ document.addEventListener("DOMContentLoaded", function () {
   // Variables para la cámara
   let cameraStream = null;
   let capturedPhotoData = null; // Almacena la foto capturada en base64
+
+  // Inicializar QROfflineService
+  console.log("[StoreVisit] Inicializando QROfflineService...");
+  try {
+    await qrOfflineService.initialize();
+    console.log("[StoreVisit] QROfflineService inicializado correctamente");
+  } catch (error) {
+    console.error("[StoreVisit] Error al inicializar QROfflineService:", error);
+  }
 
   // Elementos del modal de cámara
   const cameraModal = document.getElementById("cameraModal");
@@ -453,7 +462,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   /**
    * Valida la ubicación y registra la visita (después de confirmar foto)
-   * Con soporte para Background Sync cuando no hay conexión
+   * Con soporte offline usando PouchDB y QROfflineService
    */
   async function validateLocationAndRegister() {
     // Deshabilitar botón mientras procesa
@@ -545,77 +554,34 @@ document.addEventListener("DOMContentLoaded", function () {
         };
       });
 
-      // Preparar datos para el request
-      const requestUrl = `${BASE_URL}/visits`;
-      const formFields = {
-        userUuid: userUuid,
-        storeUuid: storeData.uuid || storeData._id || storeData.id,
-        validation: "true",
-        ordersJson: JSON.stringify(ordersJson),
-      };
+      const storeUuid = storeData.uuid || storeData._id || storeData.id;
 
-      console.log("Enviando visita:", {
+      console.log("[StoreVisit] Preparando visita:", {
         userUuid: userUuid,
-        storeUuid: storeData.uuid || storeData._id || storeData.id,
+        storeUuid: storeUuid,
         ordersCount: ordersJson.length,
         hasPhoto: !!capturedPhotoData,
+        isOnline: navigator.onLine,
       });
 
-      // Intentar enviar al servidor
-      try {
-        // Crear FormData para enviar al servidor
-        const formData = new FormData();
-        formData.append("userUuid", userUuid);
-        formData.append(
-          "storeUuid",
-          storeData.uuid || storeData._id || storeData.id
-        );
-        formData.append("validation", true);
-        formData.append("ordersJson", JSON.stringify(ordersJson));
-
-        // Agregar la foto si existe
-        if (capturedPhotoData) {
-          const photoFile = base64ToFile(
-            capturedPhotoData,
-            "visit-photo-" + Date.now() + ".jpg"
-          );
-          formData.append("photo", photoFile);
+      // VERIFICAR CONEXIÓN PRIMERO
+      if (navigator.onLine) {
+        // FLUJO ONLINE: Intentar enviar al servidor
+        console.log("[StoreVisit] Online - Enviando al servidor...");
+        try {
+          await registerVisitOnline(userUuid, storeUuid, ordersJson, token);
+        } catch (error) {
+          // Si falla el envío online, intentar guardar offline como fallback
+          console.warn("[StoreVisit] Error en envío online, intentando guardar offline...", error);
+          await registerVisitOffline(userUuid, storeUuid, ordersJson, userLat, userLon);
         }
-
-        const response = await fetch(requestUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || "Error al registrar la visita");
-        }
-
-        const result = await response.json();
-        console.log("Visita registrada:", result);
-
-        // Limpiar datos de sessionStorage
-        sessionStorage.removeItem("currentStore");
-
-        // Mostrar mensaje de éxito
-        showVisitSuccess();
-      } catch (fetchError) {
-        // Si falla por falta de conexión, guardar para sync
-        if (!navigator.onLine || fetchError.name === "TypeError") {
-          console.log(
-            "[PWA] Sin conexión, guardando visita para sync offline..."
-          );
-          await saveVisitForOfflineSync(requestUrl, formFields, token);
-        } else {
-          throw fetchError;
-        }
+      } else {
+        // FLUJO OFFLINE: Guardar en PouchDB
+        console.log("[StoreVisit] Offline - Guardando en PouchDB...");
+        await registerVisitOffline(userUuid, storeUuid, ordersJson, userLat, userLon);
       }
     } catch (error) {
-      console.error("Error al registrar visita:", error);
+      console.error("[StoreVisit] Error al registrar visita:", error);
       registerVisitBtn.disabled = false;
       registerVisitBtn.innerHTML = "Registrar Visita";
 
@@ -634,86 +600,96 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   /**
-   * Guarda la visita para sincronización offline usando Background Sync
-   * @param {string} url - URL del endpoint
-   * @param {object} formFields - Campos del formulario
-   * @param {string} token - Token de autorización
+   * Registra la visita cuando hay conexión (envío inmediato)
    */
-  async function saveVisitForOfflineSync(url, formFields, token) {
+  async function registerVisitOnline(userUuid, storeUuid, ordersJson, token) {
     try {
-      // Preparar datos de la foto para almacenamiento
-      let photoData = null;
+      const requestUrl = `${BASE_URL}/visits`;
+
+      // Crear FormData para enviar al servidor
+      const formData = new FormData();
+      formData.append("userUuid", userUuid);
+      formData.append("storeUuid", storeUuid);
+      formData.append("validation", true);
+      formData.append("ordersJson", JSON.stringify(ordersJson));
+
+      // Agregar la foto si existe
       if (capturedPhotoData) {
-        // Extraer base64 sin el prefijo data:image/...
-        const matches = capturedPhotoData.match(/^data:(.+);base64,(.+)$/);
-        if (matches) {
-          photoData = {
-            type: matches[1],
-            data: matches[2],
-            name: "visit-photo-" + Date.now() + ".jpg",
-          };
-        }
+        const photoFile = base64ToFile(
+          capturedPhotoData,
+          "visit-photo-" + Date.now() + ".jpg"
+        );
+        formData.append("photo", photoFile);
       }
 
-      // Crear payload para el Service Worker
-      const payload = {
-        url: url,
-        formFields: formFields,
-        authorization: `Bearer ${token}`,
-        photoData: photoData,
-      };
+      console.log("[StoreVisit] Enviando POST a:", requestUrl);
 
-      // Enviar al Service Worker usando MessageChannel para respuesta
-      const messageChannel = new MessageChannel();
-      const swResponse = await new Promise(function (resolve, reject) {
-        messageChannel.port1.onmessage = function (event) {
-          if (event.data.success) {
-            resolve(event.data);
-          } else {
-            reject(new Error(event.data.error || "Error guardando solicitud"));
-          }
-        };
-
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage(
-            { type: "SAVE_PENDING_REQUEST", payload: payload },
-            [messageChannel.port2]
-          );
-        } else {
-          reject(new Error("Service Worker no disponible"));
-        }
-
-        // Timeout de 5 segundos
-        setTimeout(function () {
-          reject(new Error("Timeout guardando solicitud"));
-        }, 5000);
+      const response = await fetch(requestUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
       });
 
-      console.log("[PWA] Solicitud guardada con ID:", swResponse.id);
-
-      // Registrar Background Sync si está soportado
-      if (
-        "serviceWorker" in navigator &&
-        "sync" in window.SyncManager.prototype
-      ) {
-        const registration = await navigator.serviceWorker.ready;
-        await registration.sync.register("sync-visits");
-        console.log("[PWA] Background Sync registrado: sync-visits");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP ${response.status}: Error al registrar la visita`);
       }
+
+      const result = await response.json();
+      console.log("[StoreVisit] Visita registrada exitosamente:", result);
 
       // Limpiar datos
       sessionStorage.removeItem("currentStore");
       capturedPhotoData = null;
 
-      // Mostrar mensaje de éxito offline
-      showVisitPendingSuccess();
+      // Mostrar mensaje de éxito
+      showVisitSuccess();
     } catch (error) {
-      console.error("[PWA] Error guardando para sync offline:", error);
-      throw new Error(
-        "No se pudo guardar la visita para sincronización. " + error.message
-      );
+      console.error("[StoreVisit] Error en registro online:", error);
+      throw error;
     }
   }
+
+  /**
+   * Registra la visita cuando NO hay conexión (guardado offline)
+   */
+  async function registerVisitOffline(userUuid, storeUuid, ordersJson, latitude, longitude) {
+    try {
+      // Preparar datos para guardar en PouchDB
+      const visitData = {
+        userUuid: userUuid,
+        storeUuid: storeUuid,
+        orders: ordersJson,
+        photoBase64: capturedPhotoData, // Ya está en formato base64
+        latitude: latitude,
+        longitude: longitude,
+      };
+
+      console.log("[StoreVisit] Guardando visita offline en PouchDB...");
+
+      // Guardar usando QROfflineService
+      const result = await qrOfflineService.savePendingVisit(visitData);
+
+      if (result.success) {
+        console.log("[StoreVisit] Visita guardada offline exitosamente:", result.visitId);
+
+        // Limpiar datos
+        sessionStorage.removeItem("currentStore");
+        capturedPhotoData = null;
+
+        // Mostrar mensaje de guardado offline
+        showVisitPendingSuccess();
+      } else {
+        throw new Error("No se pudo guardar la visita offline");
+      }
+    } catch (error) {
+      console.error("[StoreVisit] Error en registro offline:", error);
+      throw new Error("No hay conexión y no se pudo guardar la visita localmente: " + error.message);
+    }
+  }
+
 
   /**
    * Muestra mensaje de éxito cuando la visita se registra online
@@ -744,16 +720,10 @@ document.addEventListener("DOMContentLoaded", function () {
    * Muestra mensaje de éxito cuando la visita se guarda para sync offline
    */
   function showVisitPendingSuccess() {
-    // Limpiar datos de sessionStorage
-    sessionStorage.removeItem("currentStore");
-
-    // Limpiar foto capturada
-    capturedPhotoData = null;
-
     // Mostrar SweetAlert de pendiente
     Swal.fire({
       icon: "info",
-      title: "Guardado localmente",
+      title: "Visita guardada localmente",
       html: `
                 <p>Sin conexión a internet.</p>
                 <p class="text-muted small">La visita se enviará automáticamente cuando recuperes la conexión.</p>
@@ -1164,6 +1134,64 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedProducts = [];
     availableProducts = [];
   });
+
+  // Listener para sincronización cuando regresa la conexión
+  window.addEventListener('online', async function () {
+    console.log('[StoreVisit] 🟢 Conexión restaurada, verificando visitas pendientes...');
+
+    try {
+      // Esperar 2 segundos para que la conexión se estabilice
+      setTimeout(async function () {
+        if (qrOfflineService && qrOfflineService.isInitialized) {
+          const stats = await qrOfflineService.getCacheStats();
+
+          if (stats.pendingVisits > 0) {
+            console.log(`[StoreVisit] 📤 ${stats.pendingVisits} visitas pendientes, sincronizando...`);
+            const result = await qrOfflineService.syncAllPendingVisits();
+
+            if (result.success && result.synced > 0) {
+              console.log(`[StoreVisit] ✅ ${result.synced} visitas sincronizadas exitosamente`);
+
+              // Mostrar notificación al usuario
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'Sincronización completada',
+                  text: `${result.synced} visita(s) sincronizada(s) con el servidor`,
+                  timer: 3000,
+                  showConfirmButton: false,
+                  toast: true,
+                  position: 'top-end'
+                });
+              }
+            } else if (result.failed > 0) {
+              console.warn(`[StoreVisit] ⚠️ ${result.failed} visitas fallaron al sincronizar`);
+            }
+          } else {
+            console.log('[StoreVisit] ✅ No hay visitas pendientes para sincronizar');
+          }
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('[StoreVisit] Error al sincronizar visitas:', error);
+    }
+  });
+
+  // Verificar visitas pendientes al cargar la página (si hay conexión)
+  if (navigator.onLine && qrOfflineService && qrOfflineService.isInitialized) {
+    setTimeout(async function () {
+      try {
+        const stats = await qrOfflineService.getCacheStats();
+        if (stats.pendingVisits > 0) {
+          console.log(`[StoreVisit] 📋 ${stats.pendingVisits} visitas pendientes detectadas al cargar`);
+          console.log('[StoreVisit] 🔄 Intentando sincronizar automáticamente...');
+          await qrOfflineService.syncAllPendingVisits();
+        }
+      } catch (error) {
+        console.error('[StoreVisit] Error al verificar visitas pendientes:', error);
+      }
+    }, 3000);
+  }
 
   // Inicializar la página
   init();

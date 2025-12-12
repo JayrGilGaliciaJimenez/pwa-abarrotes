@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-: "${API_BASE_URL:=http://localhost:82}"
+: "${API_BASE_URL:=}"
 
 cat <<EOF >/usr/share/nginx/html/env-config.js
 window.__ENV = {

@@ -104,15 +104,21 @@
     <!-- Bootstrap JS -->
     <script src="../../assets/bootstrap/js/bootstrap.js"></script>
 
-    <!-- Properties (BASE_URL) -->
+    <!-- Runtime env config debe cargarse antes de properties (solo en producción) -->
+    <script src="/env-config.js" onerror="console.log('[Dev] env-config.js no encontrado, usando properties.js')"></script>
     <script src="../../properties.js"></script>
-    <script src="/env-config.js"></script>
 
     <!-- PWA Initialization (IMPORTANTE: Registra el Service Worker) -->
     <script type="module" src="/pwa-init.js"></script>
 
     <!-- Auth Guard - Protección de ruta (DEBE IR PRIMERO) -->
     <script type="module" src="../../utils/auth-guard.js"></script>
+
+    <!-- PouchDB -->
+    <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
+
+    <!-- QR Offline Service -->
+    <script src="../../services/qr-offline-service.js"></script>
 
     <!-- Dashboard JS -->
     <script src="./dashboard.js"></script>

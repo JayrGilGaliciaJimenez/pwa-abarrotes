@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginForm = document.getElementById('loginForm');
     const messageArea = document.getElementById('messageArea');
 
+    redirectIfAuthenticated();
+
     // Manejar el evento submit del formulario
     loginForm.addEventListener('submit', function(event) {
         event.preventDefault(); // Prevenir el envío tradicional del formulario
@@ -34,6 +36,38 @@ document.addEventListener('DOMContentLoaded', function() {
         // Simular autenticación
         authenticateUser(email, password);
     });
+
+    /**
+     * Redirige automáticamente si ya existe un token válido
+     */
+    function redirectIfAuthenticated() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            return;
+        }
+
+        const payload = decodeJWT(token);
+        if (!payload || !payload.role) {
+            return;
+        }
+
+        if (payload.exp && Date.now() >= payload.exp * 1000) {
+            // Token vencido, limpiar datos
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('uuid');
+            return;
+        }
+
+        const isAdmin = payload.role.some(r => r.authority === 'ADMIN');
+        const isUser = payload.role.some(r => r.authority === 'USER');
+
+        if (isAdmin) {
+            window.location.replace('./pages/admin/dashboard.html');
+        } else if (isUser) {
+            window.location.replace('./pages/delivery_man/dashboard.html');
+        }
+    }
 
     /**
      * Autentica al usuario consumiendo el endpoint del backend
@@ -97,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Redirigir al dashboard después de un breve delay
                     setTimeout(function() {
-                        window.location.href = dashboardUrl;
+                        window.location.replace(dashboardUrl);
                     }, 1500);
                 } else {
                     showMessage('Acceso denegado. No tienes permisos para acceder al sistema.', 'warning');

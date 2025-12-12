@@ -40,12 +40,13 @@ services:
       - "8082:82"
     volumes:
       - certbot-certs:/etc/letsencrypt:ro
+      - ./server/qr:/app/qr
 
   client:
     build:
       context: ./client
     environment:
-      API_BASE_URL: https://pwa-abarrotes.duckdns.org:8443
+      API_BASE_URL: https://pwa-abarrotes.duckdns.org:8082
     depends_on:
       - server
     ports:

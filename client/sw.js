@@ -12,7 +12,7 @@
  */
 
 
-const CACHE_NAME = 'abarrotes-hybrid-v4'; // Nueva versión para Background Sync
+const CACHE_NAME = 'abarrotes-hybrid-v6'; // Agregado recursos externos y env-config
 const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v1';
 const PENDING_REQUESTS_STORE = 'pending-requests';
 const DB_NAME = 'pwa-offline-requests';
@@ -175,10 +175,20 @@ async function notifyClients(message) {
  * APP SHELL - Assets críticos que deben cachearse en install
  * Estos archivos permiten que la app funcione completamente offline
  */
+/**
+ * CDN/External Resources - Recursos externos que deben cachearse
+ */
+const EXTERNAL_RESOURCES = [
+    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+];
+
 const APP_SHELL = [
     // Páginas HTML principales
     '/',
     '/index.html',
+
+    // Configuración de entorno
+    '/env-config.js',
 
     // Vistas principales del CRUD (CRÍTICAS)
     '/pages/products/products.html',
@@ -187,6 +197,7 @@ const APP_SHELL = [
     // Dashboards
     '/pages/admin/dashboard.html',
     '/pages/delivery_man/dashboard.html',
+    '/pages/delivery_man/store-visit.html',
     '/pages/drivers/drivers.html',
     '/pages/routes/routes.html',
 
@@ -202,6 +213,7 @@ const APP_SHELL = [
     '/pages/stores/store.js',
     '/pages/admin/dashboard.js',
     '/pages/delivery_man/dashboard.js',
+    '/pages/delivery_man/store-visit.js',
     '/pages/drivers/drivers.js',
     '/pages/routes/routes.js',
     '/pages/login/login.js',
@@ -211,6 +223,7 @@ const APP_SHELL = [
     '/components/admin-navbar.css',
     '/pages/login/login.css',
     '/pages/delivery_man/dashboard.css',
+    '/pages/delivery_man/store-visit.css',
 
     // JavaScript - Bootstrap y configuración
     '/assets/bootstrap/js/bootstrap.js',
@@ -225,15 +238,15 @@ const APP_SHELL = [
  * Cachea todos los archivos del App Shell de forma crítica
  */
 self.addEventListener('install', (event) => {
-    console.log('[SW] 📦 Instalando Service Worker v2...');
+    console.log('[SW] 📦 Instalando Service Worker v6...');
 
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
+            .then(async (cache) => {
                 console.log('[SW] 💾 Cacheando App Shell...');
 
-                // Cachear cada archivo individualmente para mejor logging
-                return Promise.all(
+                // Cachear archivos locales del App Shell
+                await Promise.all(
                     APP_SHELL.map(url => {
                         return cache.add(url)
                             .then(() => {
@@ -245,9 +258,29 @@ self.addEventListener('install', (event) => {
                             });
                     })
                 );
+
+                // Cachear recursos externos (CDN)
+                console.log('[SW] 💾 Cacheando recursos externos...');
+                await Promise.all(
+                    EXTERNAL_RESOURCES.map(url => {
+                        return fetch(url, { mode: 'cors' })
+                            .then(response => {
+                                if (response.ok) {
+                                    return cache.put(url, response);
+                                }
+                                throw new Error(`HTTP ${response.status}`);
+                            })
+                            .then(() => {
+                                console.log(`[SW] ✅ Cacheado externo: ${url}`);
+                            })
+                            .catch((error) => {
+                                console.error(`[SW] ❌ Error cacheando externo ${url}:`, error);
+                            });
+                    })
+                );
             })
             .then(() => {
-                console.log('[SW] ✅ App Shell cacheado completamente');
+                console.log('[SW] ✅ App Shell y recursos externos cacheados completamente');
                 // Forzar activación inmediata
                 return self.skipWaiting();
             })

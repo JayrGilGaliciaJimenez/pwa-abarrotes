@@ -104,8 +104,8 @@
     <!-- Bootstrap JS -->
     <script src="../../assets/bootstrap/js/bootstrap.js"></script>
 
-    <!-- Runtime env config debe cargarse antes de properties -->
-    <script src="/env-config.js"></script>
+    <!-- Runtime env config debe cargarse antes de properties (solo en producción) -->
+    <script src="/env-config.js" onerror="console.log('[Dev] env-config.js no encontrado, usando properties.js')"></script>
     <script src="../../properties.js"></script>
 
     <!-- PWA Initialization (IMPORTANTE: Registra el Service Worker) -->

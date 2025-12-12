@@ -12,7 +12,7 @@
  */
 
 
-const CACHE_NAME = 'abarrotes-hybrid-v5'; // Nueva versión con store-visit offline
+const CACHE_NAME = 'abarrotes-hybrid-v7'; // Agregado SweetAlert2 al cache
 const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v1';
 const PENDING_REQUESTS_STORE = 'pending-requests';
 const DB_NAME = 'pwa-offline-requests';
@@ -175,10 +175,21 @@ async function notifyClients(message) {
  * APP SHELL - Assets críticos que deben cachearse en install
  * Estos archivos permiten que la app funcione completamente offline
  */
+/**
+ * CDN/External Resources - Recursos externos que deben cachearse
+ */
+const EXTERNAL_RESOURCES = [
+    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+    'https://cdn.jsdelivr.net/npm/sweetalert2@11'
+];
+
 const APP_SHELL = [
     // Páginas HTML principales
     '/',
     '/index.html',
+
+    // Configuración de entorno
+    '/env-config.js',
 
     // Vistas principales del CRUD (CRÍTICAS)
     '/pages/products/products.html',
@@ -233,15 +244,15 @@ const APP_SHELL = [
  * Cachea todos los archivos del App Shell de forma crítica
  */
 self.addEventListener('install', (event) => {
-    console.log('[SW] 📦 Instalando Service Worker v2...');
+    console.log('[SW] 📦 Instalando Service Worker v7...');
 
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
+            .then(async (cache) => {
                 console.log('[SW] 💾 Cacheando App Shell...');
 
-                // Cachear cada archivo individualmente para mejor logging
-                return Promise.all(
+                // Cachear archivos locales del App Shell
+                await Promise.all(
                     APP_SHELL.map(url => {
                         return cache.add(url)
                             .then(() => {
@@ -253,9 +264,29 @@ self.addEventListener('install', (event) => {
                             });
                     })
                 );
+
+                // Cachear recursos externos (CDN)
+                console.log('[SW] 💾 Cacheando recursos externos...');
+                await Promise.all(
+                    EXTERNAL_RESOURCES.map(url => {
+                        return fetch(url, { mode: 'cors' })
+                            .then(response => {
+                                if (response.ok) {
+                                    return cache.put(url, response);
+                                }
+                                throw new Error(`HTTP ${response.status}`);
+                            })
+                            .then(() => {
+                                console.log(`[SW] ✅ Cacheado externo: ${url}`);
+                            })
+                            .catch((error) => {
+                                console.error(`[SW] ❌ Error cacheando externo ${url}:`, error);
+                            });
+                    })
+                );
             })
             .then(() => {
-                console.log('[SW] ✅ App Shell cacheado completamente');
+                console.log('[SW] ✅ App Shell y recursos externos cacheados completamente');
                 // Forzar activación inmediata
                 return self.skipWaiting();
             })

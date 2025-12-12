@@ -282,11 +282,15 @@
     <!-- PouchDB -->
     <script src="https://cdn.jsdelivr.net/npm/pouchdb@8.0.1/dist/pouchdb.min.js"></script>
 
-    <!-- Properties (Configuración global) -->
+    <!-- Runtime env config debe cargarse antes de properties -->
+    <script src="/env-config.js"></script>
     <script src="../../properties.js"></script>
 
     <!-- Sync Service -->
     <script src="../../services/sync-pouchdb-service.js"></script>
+
+    <!-- PWA Initialization (IMPORTANTE: Registra el Service Worker) -->
+    <script type="module" src="/pwa-init.js"></script>
 
     <!-- Auth Guard - Protección de ruta (DEBE IR PRIMERO) -->
     <script type="module" src="../../utils/auth-guard.js"></script>

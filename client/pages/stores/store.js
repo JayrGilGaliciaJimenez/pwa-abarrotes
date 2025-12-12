@@ -11,9 +11,11 @@ let storeModal = null;
 let deleteModal = null;
 let assignModal = null;
 let assignProductsModal = null;
+let storeDetailsModal = null;
 let syncService = null;
 let cachedProducts = [];
 let selectedProductUuids = new Set();
+let currentQrObjectUrl = null;
 
 // Inicialización cuando carga la página
 document.addEventListener('DOMContentLoaded', async function () {
@@ -27,6 +29,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
     assignModal = new bootstrap.Modal(document.getElementById('assignModal'));
     assignProductsModal = new bootstrap.Modal(document.getElementById('assignProductsModal'));
+    storeDetailsModal = new bootstrap.Modal(document.getElementById('storeDetailsModal'));
 
     // Cargar tiendas (GET)
     await loadStoresTable();
@@ -43,6 +46,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         resetForm();
     });
     document.getElementById('assignProductsModal').addEventListener('hidden.bs.modal', resetProductAssignmentModal);
+    document.getElementById('storeDetailsModal').addEventListener('hidden.bs.modal', () => {
+        if (currentQrObjectUrl) {
+            URL.revokeObjectURL(currentQrObjectUrl);
+            currentQrObjectUrl = null;
+        }
+    });
 
     console.log('[Stores] ✅ Página inicializada correctamente');
 });
@@ -165,6 +174,9 @@ function renderStoresTable() {
                     </button>
                     <button class="btn btn-action btn-delete" onclick="deleteStore('${storeId}')" title="Eliminar">
                         <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-action btn-primary" onclick='showStoreDetails("${storeId}")' title="Ver detalles y QR">
+                        <i class="bi bi-qr-code"></i>
                     </button>
                     <button class="btn btn-action btn-secondary" onclick='assignProductsToStore("${storeId}")' title="Asignar Productos">
                         <i class="bi bi-boxes"></i>
@@ -487,6 +499,83 @@ async function saveProductAssignment() {
     }
 }
 
+async function showStoreDetails(storeId) {
+    const store = stores.find(s => s.uuid === storeId || s._id === storeId);
+
+    if (!store) {
+        showToast('Tienda no encontrada', 'error');
+        return;
+    }
+
+    document.getElementById('detailStoreName').textContent = store.name || 'Sin nombre';
+    document.getElementById('detailStoreAddress').textContent = store.address || 'Sin dirección';
+    document.getElementById('detailStoreCoords').textContent =
+        `${store.latitude ?? '-'}, ${store.longitude ?? '-'}`;
+
+    const qrImg = document.getElementById('storeQrImage');
+    const qrPlaceholder = document.getElementById('storeQrPlaceholder');
+    qrImg.classList.add('d-none');
+    qrPlaceholder.classList.remove('d-none');
+
+    if (currentQrObjectUrl) {
+        URL.revokeObjectURL(currentQrObjectUrl);
+        currentQrObjectUrl = null;
+    }
+
+    const storeUuid = store.uuid;
+    if (storeUuid && navigator.onLine) {
+        const qrUrl = `${window.BASE_URL}/stores/${storeUuid}/qr`;
+        try {
+            const securedQrUrl = await fetchQrImageWithAuth(qrUrl);
+            if (securedQrUrl) {
+                qrImg.src = securedQrUrl;
+                qrImg.alt = `QR de ${store.name || 'tienda'}`;
+                qrImg.classList.remove('d-none');
+                qrPlaceholder.classList.add('d-none');
+                currentQrObjectUrl = securedQrUrl;
+            }
+        } catch (error) {
+            console.error('[Stores] ❌ Error al cargar el QR:', error);
+            qrImg.classList.add('d-none');
+            qrPlaceholder.classList.remove('d-none');
+        }
+    }
+
+    const productList = document.getElementById('storeProductsList');
+    const products = Array.isArray(store.products) ? store.products : [];
+
+    if (products.length === 0) {
+        productList.innerHTML = '<li class="list-group-item text-muted">Sin productos asignados</li>';
+    } else {
+        productList.innerHTML = products
+            .map(product => `
+                <li class="list-group-item">
+                    <strong>${escapeHtml(product.name || 'Producto')}</strong>
+                    ${product.description ? `<br><small class="text-muted">${escapeHtml(product.description)}</small>` : ''}
+                </li>
+            `)
+            .join('');
+    }
+
+    storeDetailsModal.show();
+}
+
+async function fetchQrImageWithAuth(url) {
+    const token = localStorage.getItem('token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const response = await fetch(url, {
+        headers,
+        cache: 'no-store',
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+}
+
 
 /**
  * Actualizar tienda existente (PUT)
@@ -699,6 +788,7 @@ window.editStore = editStore;
 window.deleteStore = deleteStore;
 window.assignDriver = assignDriver;
 window.assignProductsToStore = assignProductsToStore;
+window.showStoreDetails = showStoreDetails;
 window.stores = stores; // Para debugging
 
 console.log('[Stores] 🏪 Módulo de tiendas cargado (GET, POST, PUT, DELETE) con soporte offline/online');

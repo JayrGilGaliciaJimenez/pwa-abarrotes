@@ -12,7 +12,7 @@
  */
 
 
-const CACHE_NAME = 'abarrotes-hybrid-v6'; // Agregado recursos externos y env-config
+const CACHE_NAME = 'abarrotes-hybrid-v7'; // Agregado SweetAlert2 al cache
 const DATA_CACHE_NAME = 'abarrotes-data-hybrid-v1';
 const PENDING_REQUESTS_STORE = 'pending-requests';
 const DB_NAME = 'pwa-offline-requests';
@@ -179,7 +179,8 @@ async function notifyClients(message) {
  * CDN/External Resources - Recursos externos que deben cachearse
  */
 const EXTERNAL_RESOURCES = [
-    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+    'https://cdn.jsdelivr.net/npm/sweetalert2@11'
 ];
 
 const APP_SHELL = [
@@ -238,7 +239,7 @@ const APP_SHELL = [
  * Cachea todos los archivos del App Shell de forma crítica
  */
 self.addEventListener('install', (event) => {
-    console.log('[SW] 📦 Instalando Service Worker v6...');
+    console.log('[SW] 📦 Instalando Service Worker v7...');
 
     event.waitUntil(
         caches.open(CACHE_NAME)
